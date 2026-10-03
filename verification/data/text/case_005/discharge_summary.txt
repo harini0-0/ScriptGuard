@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for urinary tract infection. Treated and improved.
+
+Discharge medications:
+- Nitrofurantoin 100 mg by mouth twice daily (new)
+- Metformin 500 mg by mouth twice daily

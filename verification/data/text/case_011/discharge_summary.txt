@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for heart failure exacerbation. Diuresed and improved.
+
+Discharge medications:
+- Metoprolol succinate 50 mg by mouth daily
+- Furosemide 40 mg by mouth daily

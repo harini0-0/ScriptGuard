@@ -1,0 +1,9 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for lower leg cellulitis. History of diabetic neuropathy. Infection resolved on IV antibiotics.
+
+Discharge medications:
+- Gabapentin 300 mg by mouth three times daily
+- Metformin 1000 mg by mouth twice daily
+- Cephalexin 500 mg by mouth four times daily (new)

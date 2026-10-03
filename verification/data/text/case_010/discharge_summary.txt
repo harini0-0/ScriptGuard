@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for syncope. Workup unremarkable.
+
+Discharge medications:
+- Levothyroxine 25 mcg by mouth daily
+- Aspirin 81 mg by mouth daily

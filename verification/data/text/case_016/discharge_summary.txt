@@ -1,0 +1,11 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with dizziness and low blood pressure.
+
+Discharge medications:
+- Tamsulosin 0.4 mg by mouth at bedtime
+- Sertraline 50 mg by mouth daily
+
+Medications stopped:
+- Amlodipine: STOP. Reason: hypotension.

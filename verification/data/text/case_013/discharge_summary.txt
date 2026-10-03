@@ -1,0 +1,9 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for chest pain. Myocardial infarction ruled out.
+
+Discharge medications:
+- Atorvastatin 40 mg by mouth at bedtime
+- Clopidogrel 75 mg by mouth daily
+- Lisinopril 20 mg by mouth daily

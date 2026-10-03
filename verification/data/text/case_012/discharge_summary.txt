@@ -1,0 +1,7 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for pulmonary embolism. Started on anticoagulation.
+
+Discharge medications:
+- Apixaban 5 mg by mouth twice daily (new)

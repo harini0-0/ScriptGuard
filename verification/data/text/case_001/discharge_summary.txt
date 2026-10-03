@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for pneumonia. Treated and improved.
+
+Discharge medications:
+- Levothyroxine 0.1 mg by mouth daily
+- Amoxicillin 875 mg by mouth twice daily (new)

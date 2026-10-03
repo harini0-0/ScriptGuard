@@ -1,0 +1,507 @@
+{
+  "summary": {
+    "suite": "A. Checks only (verified extraction, typed text)",
+    "cases_scored": 19,
+    "cases_excluded": [
+      "case_005"
+    ],
+    "errors_planted": 15,
+    "errors_caught": 15,
+    "errors_missed": 0,
+    "false_alarms": 1,
+    "error_recall": 1.0,
+    "precision": 0.9375,
+    "f1": 0.967741935483871,
+    "clean_cases": 7,
+    "specificity": 1.0,
+    "false_alarms_per_case": 0.05263157894736842,
+    "review_rate": 0.0,
+    "case_accuracy": 0.9473684210526315,
+    "advisory_low_flags": 2,
+    "per_type": {
+      "stopped_but_ordered": {
+        "planted": 3,
+        "caught": 3
+      },
+      "dose_mismatch": {
+        "planted": 6,
+        "caught": 6
+      },
+      "missing_from_orders": {
+        "planted": 4,
+        "caught": 4
+      },
+      "frequency_mismatch": {
+        "planted": 2,
+        "caught": 2
+      }
+    },
+    "status_confusion": {
+      "CLEAN -> CLEAN": 7,
+      "HELD -> HELD": 12
+    },
+    "seconds_per_case": 0.003263157894736842,
+    "errors": []
+  },
+  "rows": [
+    {
+      "case": "case_001",
+      "scenario": "mcg_mg_equivalent",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0038,
+      "note": "0.1 mg = 100 mcg."
+    },
+    {
+      "case": "case_002",
+      "scenario": "stopped_but_ordered",
+      "expected": [
+        [
+          "stopped_but_ordered",
+          "warfarin"
+        ]
+      ],
+      "caught": [
+        [
+          "stopped_but_ordered",
+          "warfarin"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0046,
+      "note": "Demo: stopped drug carried over onto orders."
+    },
+    {
+      "case": "case_003",
+      "scenario": "clean",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0058,
+      "note": "Demo: documents agree, no false alarm."
+    },
+    {
+      "case": "case_004",
+      "scenario": "dose_mismatch",
+      "expected": [
+        [
+          "dose_mismatch",
+          "gabapentin"
+        ]
+      ],
+      "caught": [
+        [
+          "dose_mismatch",
+          "gabapentin"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0046,
+      "note": "Demo: tenfold typing error on the order."
+    },
+    {
+      "case": "case_005",
+      "scenario": "omitted_home_med",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0033,
+      "note": "Out of scope: needs the home medication list (third document)."
+    },
+    {
+      "case": "case_006",
+      "scenario": "missing_new_drug",
+      "expected": [
+        [
+          "missing_from_orders",
+          "apixaban"
+        ]
+      ],
+      "caught": [
+        [
+          "missing_from_orders",
+          "apixaban"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0023,
+      "note": "New anticoagulant never ordered."
+    },
+    {
+      "case": "case_007",
+      "scenario": "correct_stop",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0011,
+      "note": "Stop correctly carried out; PRN wording handled."
+    },
+    {
+      "case": "case_008",
+      "scenario": "insulin_units",
+      "expected": [
+        [
+          "dose_mismatch",
+          "insulin glargine"
+        ]
+      ],
+      "caught": [
+        [
+          "dose_mismatch",
+          "insulin glargine"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0029,
+      "note": "Tenfold insulin error."
+    },
+    {
+      "case": "case_009",
+      "scenario": "large_clean",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0085,
+      "note": "Six medications, all consistent; tests extraction at length."
+    },
+    {
+      "case": "case_010",
+      "scenario": "mcg_tenfold",
+      "expected": [
+        [
+          "dose_mismatch",
+          "levothyroxine"
+        ]
+      ],
+      "caught": [
+        [
+          "dose_mismatch",
+          "levothyroxine"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.003,
+      "note": "Extra zero on a microgram dose."
+    },
+    {
+      "case": "case_011",
+      "scenario": "salt_form",
+      "expected": [
+        [
+          "missing_from_orders",
+          "metoprolol succinate"
+        ]
+      ],
+      "caught": [
+        [
+          "missing_from_orders",
+          "metoprolol succinate"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [
+        [
+          "not_in_summary",
+          "metoprolol tartrate"
+        ]
+      ],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": false,
+      "review_reason": null,
+      "seconds": 0.0031,
+      "note": "Salt-form swap. Flagged as missing succinate; a dedicated formulation check is roadmap."
+    },
+    {
+      "case": "case_012",
+      "scenario": "apixaban_dose",
+      "expected": [
+        [
+          "dose_mismatch",
+          "apixaban"
+        ]
+      ],
+      "caught": [
+        [
+          "dose_mismatch",
+          "apixaban"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0014,
+      "note": "Decimal dose mismatch."
+    },
+    {
+      "case": "case_013",
+      "scenario": "two_errors",
+      "expected": [
+        [
+          "dose_mismatch",
+          "atorvastatin"
+        ],
+        [
+          "missing_from_orders",
+          "clopidogrel"
+        ]
+      ],
+      "caught": [
+        [
+          "dose_mismatch",
+          "atorvastatin"
+        ],
+        [
+          "missing_from_orders",
+          "clopidogrel"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0041,
+      "note": "Two independent errors in one case."
+    },
+    {
+      "case": "case_014",
+      "scenario": "frequency_only",
+      "expected": [
+        [
+          "frequency_mismatch",
+          "metformin"
+        ]
+      ],
+      "caught": [
+        [
+          "frequency_mismatch",
+          "metformin"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.003,
+      "note": "Known miss in the first version (frequency not compared); now checked."
+    },
+    {
+      "case": "case_015",
+      "scenario": "intentional_hold",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0024,
+      "note": "Intentional, documented hold must not be flagged."
+    },
+    {
+      "case": "case_016",
+      "scenario": "stop_and_mismatch",
+      "expected": [
+        [
+          "dose_mismatch",
+          "sertraline"
+        ],
+        [
+          "stopped_but_ordered",
+          "amlodipine"
+        ]
+      ],
+      "caught": [
+        [
+          "dose_mismatch",
+          "sertraline"
+        ],
+        [
+          "stopped_but_ordered",
+          "amlodipine"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0048,
+      "note": "A stop error and a dose error together."
+    },
+    {
+      "case": "case_017",
+      "scenario": "brand_stop",
+      "expected": [
+        [
+          "stopped_but_ordered",
+          "warfarin"
+        ]
+      ],
+      "caught": [
+        [
+          "stopped_but_ordered",
+          "warfarin"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0023,
+      "note": "Stop written with brand name, order uses generic."
+    },
+    {
+      "case": "case_018",
+      "scenario": "units_and_brand",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [
+        [
+          "name_differs_confirm_brand_intent",
+          "gabapentin"
+        ]
+      ],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0023,
+      "note": "Brand vs generic and 1 g = 1,000 mg must not raise a false alarm."
+    },
+    {
+      "case": "realistic_clean",
+      "scenario": "indian_table_brands_clean",
+      "expected": [],
+      "caught": [],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [],
+      "status": "CLEAN",
+      "expected_status": "CLEAN",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0003,
+      "note": "Same format, no errors."
+    },
+    {
+      "case": "realistic_held",
+      "scenario": "indian_table_brands",
+      "expected": [
+        [
+          "frequency_mismatch",
+          "pantoprazole+domperidone"
+        ],
+        [
+          "missing_from_orders",
+          "ascorbic acid"
+        ]
+      ],
+      "caught": [
+        [
+          "frequency_mismatch",
+          "pantoprazole+domperidone"
+        ],
+        [
+          "missing_from_orders",
+          "ascorbic acid"
+        ]
+      ],
+      "missed": [],
+      "false_alarms": [],
+      "low_flags": [
+        [
+          "name_differs_confirm_brand_intent",
+          "paracetamol"
+        ]
+      ],
+      "status": "HELD",
+      "expected_status": "HELD",
+      "correct": true,
+      "review_reason": null,
+      "seconds": 0.0017,
+      "note": "Scanned table with brand names and 1-0-1 schedules. A low brand flag (Dolo vs paracetamol) is expected too."
+    }
+  ]
+}

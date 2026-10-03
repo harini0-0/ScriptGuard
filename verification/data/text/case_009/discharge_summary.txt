@@ -1,0 +1,12 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for heart failure. Diuresed. Medications reviewed and continued.
+
+Discharge medications:
+- Furosemide 40 mg by mouth daily
+- Metoprolol succinate 25 mg by mouth daily
+- Lisinopril 5 mg by mouth daily
+- Atorvastatin 20 mg by mouth at bedtime
+- Aspirin 81 mg by mouth daily
+- Potassium chloride 20 mEq by mouth daily

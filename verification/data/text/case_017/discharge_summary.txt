@@ -1,0 +1,10 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with elevated INR and bruising. Anticoagulation stopped.
+
+Discharge medications:
+- Amlodipine 5 mg by mouth daily
+
+Medications stopped:
+- Coumadin: STOP. Reason: supratherapeutic INR. Hematology to decide on restart.

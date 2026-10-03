@@ -1,0 +1,10 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with acute kidney injury. Kidney function improving.
+
+Discharge medications:
+- Acetaminophen 500 mg by mouth every 6 hours as needed for pain
+
+Medications stopped:
+- Ibuprofen: STOP. Reason: acute kidney injury.

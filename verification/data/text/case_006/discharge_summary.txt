@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with new atrial fibrillation. Rate controlled. Anticoagulation started.
+
+Discharge medications:
+- Apixaban 5 mg by mouth twice daily (new)
+- Diltiazem 120 mg by mouth daily (new)

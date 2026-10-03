@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with hyperglycemia. Basal insulin adjusted.
+
+Discharge medications:
+- Insulin glargine 20 units subcutaneously at bedtime
+- Metformin 500 mg by mouth twice daily

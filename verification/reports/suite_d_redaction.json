@@ -1,0 +1,76 @@
+{
+  "summary": {
+    "identifier_instances_checked": 44,
+    "leak_rate_with_intake_name_and_mrn": 0.0,
+    "leak_rate_regex_only": 0.0,
+    "medication_lines_checked": 105,
+    "medication_lines_kept": 1.0,
+    "medication_lines_lost": []
+  },
+  "rows": [
+    {
+      "format": "text",
+      "case": "realistic_held",
+      "doc": "discharge_summary",
+      "identifiers_present": 8,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "text",
+      "case": "realistic_held",
+      "doc": "prescription",
+      "identifiers_present": 3,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "text",
+      "case": "realistic_clean",
+      "doc": "discharge_summary",
+      "identifiers_present": 8,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "text",
+      "case": "realistic_clean",
+      "doc": "prescription",
+      "identifiers_present": 3,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "scan",
+      "case": "realistic_held",
+      "doc": "discharge_summary",
+      "identifiers_present": 8,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "scan",
+      "case": "realistic_held",
+      "doc": "prescription",
+      "identifiers_present": 3,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "scan",
+      "case": "realistic_clean",
+      "doc": "discharge_summary",
+      "identifiers_present": 8,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    },
+    {
+      "format": "scan",
+      "case": "realistic_clean",
+      "doc": "prescription",
+      "identifiers_present": 3,
+      "leaked_with_intake_name_mrn": [],
+      "leaked_regex_only": []
+    }
+  ]
+}

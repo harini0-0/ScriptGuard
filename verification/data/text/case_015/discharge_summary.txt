@@ -1,0 +1,10 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with acute kidney injury and dehydration. Rehydrated.
+
+Discharge medications:
+- Metformin 500 mg by mouth twice daily
+
+Medications stopped:
+- Lisinopril: STOP. Reason: held due to acute kidney injury; resume at primary care follow-up.

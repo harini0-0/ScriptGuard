@@ -1,0 +1,8 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for fall without injury. Discharged home.
+
+Discharge medications:
+- Neurontin 300 mg by mouth three times daily
+- Metformin 1 g by mouth twice daily

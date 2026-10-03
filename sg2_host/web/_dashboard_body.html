@@ -1,0 +1,147 @@
+<body>
+<header class="top">
+  <div class="brand"><h1>ScriptGuard</h1><span>Pharmacy counter 1</span></div>
+  <div class="toplinks"><a href="/intake" target="_blank">Intake</a><a href="/board" target="_blank">Waiting-room board</a></div>
+  <div class="switch" role="group" aria-label="View">
+    <button id="v-queue" aria-pressed="true" onclick="setView('queue')">Queue</button>
+    <button id="v-audit" aria-pressed="false" onclick="setView('audit')">End-of-day audit</button>
+  </div>
+</header>
+<main class="wrap" id="app"><p class="qsub">Loading...</p></main>
+<script>
+let cases = [], earlier = [], sandbox = [], storeName = "", view = "queue", sel = null, lastJSON = "", busy = false;
+const typeLabel = {dose_mismatch:"Dose differs", missing_from_prescription:"Missing from prescription",
+  not_in_summary:"Not in summary", frequency_mismatch:"Frequency differs",
+  stopped_in_summary_but_prescribed:"Stopped in summary but prescribed",
+  name_differs_confirm_brand_intent:"Name differs, confirm brand"};
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+async function refresh(force) {
+  try {
+    const s = await api("/api/state"); const js = JSON.stringify(s);
+    const typing = document.activeElement && document.activeElement.id === "dec";
+    if (!force && (js === lastJSON || typing || busy)) return;
+    lastJSON = js; cases = s.cases; earlier = s.closed; sandbox = s.sandbox; storeName = s.store;
+    if (!sel || !cases.find(c => c.id === sel)) sel = (cases.find(c => c.status !== "closed") || cases[0] || {}).id;
+    render();
+  } catch (e) { document.getElementById("app").innerHTML = `<div class="note">Server not reachable: ${esc(e.message)}</div>`; }
+}
+function statusPill(c){
+  if (c.status === "ready") {
+    const h = c.flags.filter(f => f.severity === "HIGH").length, l = c.flags.length - h;
+    if (h) return `<span class="pill p-high">${h} high${l ? ` +${l}` : ""}</span>`;
+    if (l) return `<span class="pill p-low">${l} low</span>`;
+    return `<span class="pill p-ok">No mismatches</span>`;
+  }
+  return {processing:`<span class="pill p-wait">Checking</span>`, pending:`<span class="pill p-wait">Waiting</span>`,
+    review:`<span class="pill p-review">Check by hand</span>`, closed:`<span class="pill p-ok">Closed</span>`}[c.status];
+}
+function queueHTML(){
+  const busyNow = cases.some(c => c.status === "processing" || c.status === "ready" || c.status === "review");
+  const waiting = cases.filter(c => c.status === "pending").length;
+  const items = cases.map(c => `<button class="qitem" aria-current="${c.id===sel}" onclick="pick('${c.id}')">
+    <span class="qtok">${c.id}</span><span><span class="qname">${esc(c.name)}</span><br><span class="qsub">Uploaded ${c.uploaded}</span></span>${statusPill(c)}</button>`).join("");
+  return `<nav class="queue" aria-label="Token queue"><h2>Today's tokens</h2>
+    <div class="callbar"><span class="qsub">${waiting} waiting</span>
+    <button class="btn small" ${busyNow || !waiting ? "disabled" : ""} onclick="callNext()">Call next token</button></div>
+    ${items || '<p class="qsub" style="padding:12px">No tokens yet. Use Intake to add one.</p>'}
+    <p class="sandbox" style="padding:0 12px 12px">Charts the agent can see: <b>${sandbox.length ? sandbox.map(esc).join(", ") : "none"}</b><br>Patient store: ${esc(storeName)}</p></nav>`;
+}
+function flagHTML(f, i){
+  const cls = f.severity === "HIGH" ? "high" : "low", pill = f.severity === "HIGH" ? "p-high" : "p-low";
+  return `<article class="flag ${cls}">
+    <div class="fhead"><span class="pill ${pill}">${f.severity === "HIGH" ? "High" : "Low"}</span><span class="fdrug">${esc(f.drug)}</span><span class="qsub">${typeLabel[f.type] || esc(f.type)}</span></div>
+    <p class="fexp">${esc(f.explanation)}</p>
+    <div class="compare">
+      <div><small>Discharge summary${f.sl ? `, line ${f.sl}` : ""}</small>${f.s ? `<span class="src">${esc(f.s)}</span>` : `<span class="src none">Not in the discharge summary</span>`}</div>
+      <div><small>Prescription${f.pl ? `, line ${f.pl}` : ""}</small>${f.p ? `<span class="src">${esc(f.p)}</span>` : `<span class="src none">Not on the prescription</span>`}</div>
+    </div>
+    <label class="fcheck"><input type="checkbox" id="chk-${i}"> Resolved with the prescriber</label></article>`;
+}
+function caseHTML(c){
+  if (!c) return `<section class="case"><div class="note">No case selected.</div></section>`;
+  const head = `<div class="head"><div class="token">${c.id}</div><div class="who"><h2>${esc(c.name)}</h2><p>MRN ${esc(c.mrn)}, uploaded at ${c.uploaded}</p></div><div style="margin-left:auto">${statusPill(c)}</div></div>
+    ${c.sources ? `<div class="sources">${c.sources.map(s => `<span><b>${s.doc}:</b> ${esc(s.how)}</span>`).join("")}</div>` : ""}`;
+  let body = "";
+  if (c.status === "pending") body = `<div class="note">Waiting in line. Click <b>Call next token</b> when this patient is next; only their chart is sent to the agent, with identifiers removed.</div>`;
+  else if (c.status === "processing") {
+    const pr = c.progress || {};
+    body = pr.error
+      ? `<div class="note" style="background:var(--low-bg);color:var(--low)">${esc(pr.stage)}: ${esc(pr.error)}</div>
+         <div class="row"><button class="btn small" onclick="backup('${c.id}')">Retry the check</button></div>`
+      : `<div class="note">${c.auto ? "Checking now. Results usually appear within a minute." : "Waiting for the agent."}<br><b style="color:var(--ink);font-weight:500">${esc(pr.stage || "")}</b></div>`;
+    body += `<details style="margin-top:10px"><summary class="qsub">Run it through the OpenClaw chat instead</summary>
+      <div class="agentbox" id="prompt">${esc(c.prompt)}</div>
+      <div class="row"><button class="btn small ghost" onclick="copyPrompt()">Copy prompt</button></div></details>
+      <p class="err" id="err" role="alert"></p>`;
+  }
+  else if (c.status === "closed") body = `<div class="note">Closed at ${c.closed}. Documents removed; audit record kept.<br><b style="color:var(--ink);font-weight:500">Decision:</b> ${esc(c.decision)}</div>`;
+  else {
+    if (c.status === "review") body = `<div class="note" style="background:var(--low-bg);color:var(--low)">${esc(c.reason)}</div>`;
+    if (!c.flags.length && c.status !== "review") body += `<p class="summary">No mismatches found in ${c.checked} medicines checked.</p>`;
+    else if (c.flags.length) {
+      const h = c.flags.filter(f => f.severity === "HIGH").length;
+      body += `<p class="summary">${c.flags.length} mismatch${c.flags.length > 1 ? "es" : ""} in ${c.checked} medicines checked${h ? `, ${h} high severity` : ""}.</p>${c.flags.map(flagHTML).join("")}`;
+    }
+    if (c.evidence) body += `<p class="qsub">Evidence: ${esc(c.evidence)}</p>`;
+    body += `<div class="decide"><label for="dec">Pharmacist decision</label>
+      <textarea id="dec" placeholder="Pan D schedule corrected to 1-0-0 after call to Dr. Mehta" oninput="document.getElementById('err').textContent=''"></textarea>
+      <p class="err" id="err" role="alert"></p>
+      <button class="btn" onclick="closeCase('${c.id}')">Close case</button></div>`;
+  }
+  return `<section class="case" aria-live="polite">${head}${body}</section>`;
+}
+function auditHTML(){
+  const closed = earlier;
+  const allFlags = closed.flatMap(c => c.flags);
+  const high = allFlags.filter(f => f.severity === "HIGH").length;
+  const withFlags = closed.filter(c => c.flags.length).length, reviews = closed.filter(c => c.review).length;
+  const meds = closed.reduce((a, c) => a + (c.checked || 0), 0);
+  const counts = {}; allFlags.forEach(f => counts[f.type] = (counts[f.type] || 0) + 1);
+  const max = Math.max(1, ...Object.values(counts));
+  const bars = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<div class="bar"><span>${typeLabel[t] || t}</span><span class="track"><i style="width:${Math.round(n / max * 100)}%"></i></span><b style="font-weight:500;text-align:right">${n}</b></div>`).join("");
+  const rows = [...closed].sort((a, b) => a.id.localeCompare(b.id)).map(c => {
+    const h = c.flags.filter(f => f.severity === "HIGH").length, l = c.flags.length - h;
+    const fl = c.flags.length ? [h ? `<span class="pill p-high">${h} high</span>` : "", l ? `<span class="pill p-low">${l} low</span>` : ""].join(" ")
+      : (c.review ? `<span class="pill p-review">Checked by hand</span>` : `<span class="pill p-ok">None</span>`);
+    return `<tr><td class="tok">${c.id}</td><td>${esc(c.name)}<br><span class="qsub">MRN ${esc(c.mrn)}</span></td><td>${fl}</td><td>${esc(c.decision)}</td><td>${c.closed}</td></tr>`; }).join("");
+  const today = new Date().toLocaleDateString(undefined, {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+  return `<div class="rowhead"><div><h2>End-of-day audit</h2><p>${today}, counter 1. Contains no document text; patient documents were deleted at closing.</p></div><button class="btn ghost" onclick="window.print()">Print report</button></div>
+  <div class="metrics">
+    <div class="metric"><b>${closed.length}</b><span>Cases closed</span></div>
+    <div class="metric"><b>${meds}</b><span>Medicines checked</span></div>
+    <div class="metric"><b>${withFlags}</b><span>Cases with mismatches</span></div>
+    <div class="metric"><b style="color:var(--high)">${high}</b><span>High-severity flags</span></div>
+    <div class="metric"><b>${reviews}</b><span>Checked by hand</span></div>
+  </div>
+  <section class="panel"><h2>Mismatches by type</h2><p class="lead">Which kinds of discharge errors showed up today.</p><div class="bars">${bars || '<p class="qsub">No mismatches today.</p>'}</div></section>
+  <section class="panel"><h2>Closed cases</h2><p class="lead">Every case closed today, with the pharmacist's decision.</p>
+    <div class="tablewrap"><table><thead><tr><th>Token</th><th>Patient</th><th>Flags</th><th>Decision</th><th>Closed</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="qsub">No closed cases yet.</td></tr>'}</tbody></table></div></section>`;
+}
+function render(){
+  const app = document.getElementById("app");
+  if (view === "audit") { app.innerHTML = auditHTML(); return; }
+  app.innerHTML = `<div class="grid">${queueHTML()}${caseHTML(cases.find(x => x.id === sel))}</div>`;
+}
+function pick(id){ sel = id; render(); }
+function setView(v){ view = v; document.getElementById("v-queue").setAttribute("aria-pressed", v === "queue"); document.getElementById("v-audit").setAttribute("aria-pressed", v === "audit"); render(); }
+function copyPrompt(){ navigator.clipboard && navigator.clipboard.writeText(document.getElementById("prompt").textContent); }
+async function callNext(){ try { const r = await api("/api/call", {}); sel = r.token; await refresh(true); } catch (e) { alert(e.message); } }
+async function backup(id){
+  const e = document.getElementById("err"); busy = true; e.textContent = "Running the local model... this can take a minute.";
+  try { await api("/api/backup", {token:id}); e.textContent = ""; } catch (x) { e.textContent = x.message; }
+  busy = false; await refresh(true);
+}
+async function closeCase(id){
+  const t = document.getElementById("dec"), e = document.getElementById("err"), v = t.value.trim();
+  if (!v) { e.textContent = "Write what you decided before closing the case."; t.focus(); return; }
+  try { await api("/api/close", {token:id, decision:v}); t.blur(); await refresh(true); } catch (x) { e.textContent = x.message; }
+}
+refresh(true); setInterval(refresh, 3000);
+</script>
+</body>
+</html>

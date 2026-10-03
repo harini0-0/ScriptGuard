@@ -1,0 +1,16 @@
+# patient data and runtime state (never commit)
+sg2_host/data/
+scriptguard2/cases/*
+scriptguard2/work/*
+scriptguard2/results/*
+!scriptguard2/cases/.gitkeep
+!scriptguard2/work/.gitkeep
+!scriptguard2/results/.gitkeep
+mongo-data/
+# caches, archives, secrets
+__pycache__/
+*.pyc
+*.zip
+*.log
+*.tmp
+.env

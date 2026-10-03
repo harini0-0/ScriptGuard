@@ -1,0 +1,10 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted for COPD exacerbation. Improved on inhaled therapy and oral steroids. Stable for discharge.
+
+Discharge medications:
+- Metformin 500 mg by mouth twice daily
+- Lisinopril 10 mg by mouth daily
+- Atorvastatin 40 mg by mouth at bedtime
+- Tiotropium 18 mcg inhaled daily

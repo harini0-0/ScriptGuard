@@ -1,0 +1,18 @@
+<body>
+<header class="top"><div class="brand"><h1>ScriptGuard</h1><span>Pharmacy counter 1</span></div></header>
+<main class="wrap">
+  <div class="grid" style="grid-template-columns:2fr 1fr">
+    <section class="panel"><p class="lead">Now serving</p><div id="now" class="token" style="font-size:9rem;line-height:1.1">--</div></section>
+    <section class="panel"><p class="lead">Next</p><div id="next"></div></section>
+  </div>
+</main>
+<script>
+async function tick(){ try { const s = await (await fetch("/api/state")).json();
+  const cur = s.cases.find(c => ["processing","ready","review"].includes(c.status));
+  document.getElementById("now").textContent = cur ? cur.id : "--";
+  const nx = s.cases.filter(c => c.status === "pending").slice(0, 6);
+  document.getElementById("next").innerHTML = nx.length ? nx.map(c => `<div class="token" style="font-size:2.4rem">${c.id}</div>`).join("") : '<p class="qsub">No one waiting</p>';
+} catch (e) {} }
+tick(); setInterval(tick, 3000);
+</script>
+</body></html>

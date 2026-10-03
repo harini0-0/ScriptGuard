@@ -1,0 +1,11 @@
+DISCHARGE SUMMARY (SYNTHETIC - NOT A REAL PATIENT)
+
+Hospital course:
+Admitted with upper GI bleed. Anticoagulation stopped. Bleeding controlled after endoscopy.
+
+Discharge medications:
+- Furosemide 20 mg by mouth daily
+- Pantoprazole 40 mg by mouth twice daily (new)
+
+Medications stopped:
+- Warfarin: STOP. Reason: GI bleed. Do not restart until GI follow-up.

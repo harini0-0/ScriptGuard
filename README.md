@@ -120,13 +120,29 @@ Click a thumbnail to play the video (the files live in [`Demo/`](Demo/)):
 > [Git LFS](https://git-lfs.com/); otherwise open them locally from the `Demo/` folder.
 > The `3D_ProbStat.mp4` clip (≈ 13 MB) commits normally.
 
-### Interactive explainers & pitch (in [`Demo/`](Demo/))
+### Interactive 3D explainers (run live in the browser)
+
+These are real-time three.js animations — the same content as the `.mov` clips above, but
+interactive. A README can't run them inline (GitHub strips the scripts), so the **Open live** links
+render the page live through a preview proxy. No download, no repo setup.
+
+| Explainer | Open live | What it is |
+|---|---|---|
+| **The handoff problem, in 3D** | [▶ open](https://raw.githack.com/harini0-0/ScriptGuard/main/Demo/The%20handoff%20problem%2C%20in%203D.html) | Interactive walkthrough of how a dose, a drug, or a brand gets lost between the two documents. |
+| **ScriptGuard, end to end in 3D** | [▶ open](https://raw.githack.com/harini0-0/ScriptGuard/main/Demo/ScriptGuard%2C%20end%20to%20end%20in%203D.html) | Interactive view of the full pipeline, from filing the documents to the pharmacist's verdict. |
+| **Pharmacist dashboard (mockup)** | [▶ open](https://raw.githack.com/harini0-0/ScriptGuard/main/Demo/ScriptGuard%20pharmacist%20dashboard.html) | Self-contained mockup of the pharmacist dashboard. |
+
+> **Live links need the files pushed to `main` first** (the proxy fetches them from GitHub). They
+> load three.js and fonts from public CDNs, so an internet connection is required to view them — the
+> animations themselves still run fully offline in the real demo.
+> For permanent URLs, enable **GitHub Pages** (Settings → Pages → deploy from `main`); the pages then
+> live at `https://harini0-0.github.io/ScriptGuard/Demo/...`.
+> To view locally instead, just open any `Demo/*.html` file in a browser.
+
+### More materials (in [`Demo/`](Demo/))
 
 | File | What it is |
 |---|---|
-| [`The handoff problem, in 3D.html`](Demo/The%20handoff%20problem,%20in%203D.html) | Interactive 3D walkthrough of how a dose, a drug, or a brand gets lost between the two documents. |
-| [`ScriptGuard, end to end in 3D.html`](Demo/ScriptGuard,%20end%20to%20end%20in%203D.html) | Interactive 3D view of the full pipeline, from filing the documents to the pharmacist's verdict. |
-| [`ScriptGuard pharmacist dashboard.html`](Demo/ScriptGuard%20pharmacist%20dashboard.html) | Standalone, self-contained mockup of the pharmacist dashboard (open in a browser). |
 | [`ScriptGuard_ pitch, analysis and 4-hour build plan.html`](Demo/ScriptGuard_%20pitch,%20analysis%20and%204-hour%20build%20plan.html) | The full pitch: 30-second version, the on-stage story, the analysis, and the hackathon build plan. |
 | [`Script.pdf`](Demo/Script.pdf) | The presentation script read on stage. |
 | [`MVP.pdf`](Demo/MVP.pdf) | The MVP write-up — scope, approach, and what was built. |

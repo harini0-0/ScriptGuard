@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The handoff problem, in 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#DCE4E2;--panel:rgba(255,255,255,0.94);--ink:#16232B;--muted:#5B6B73;--line:#D9E0DE;
+  --accent:#1F5E7A;--accent-bg:#E3EEF3;--code:#F1F4F3;--high:#B3261E;--high-bg:#FCEAE8;--ok:#2E6B4A;--ok-bg:#E5F2EA;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B1115;--panel:rgba(23,33,39,0.94);--ink:#E6ECEE;--muted:#9AAAB1;--line:#2A363D;
+    --accent:#6FB3D2;--accent-bg:#17303C;--code:#0F161A;--high:#F2A49E;--high-bg:#3A1D1B;--ok:#8FD1AC;--ok-bg:#17301F;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B1115;--panel:rgba(23,33,39,0.94);--ink:#E6ECEE;--muted:#9AAAB1;--line:#2A363D;
+  --accent:#6FB3D2;--accent-bg:#17303C;--code:#0F161A;--high:#F2A49E;--high-bg:#3A1D1B;--ok:#8FD1AC;--ok-bg:#17301F;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;overflow:hidden}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);left:16px;right:16px;pointer-events:none}
+.hud h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-0.01em}
+.hud p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.cap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:6px 8px 6px 16px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.cap .num{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cap .ttl{font-size:15px;font-weight:500;line-height:1.3}
+.cap .ctl{display:flex;gap:4px;margin-left:4px}
+.cap button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:none;font-size:13px;display:flex;align-items:center;justify-content:center}
+.cap button:disabled{opacity:0.35;cursor:default}
+.fail{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--muted)}
+@media (max-width:640px){.hud h1{font-size:17px}.cap .ttl{font-size:14px}.cap{border-radius:16px}}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="3D story of a discharge handoff between a senior and a junior doctor"></canvas>
+<div class="hud"><h1>The handoff problem</h1><p>Fictional patient and doctors. The pattern is real.</p></div>
+<section class="cap" aria-live="polite">
+  <span class="num" id="count"></span>
+  <span class="ttl" id="ttl"></span>
+  <span class="ctl">
+    <button id="prev" aria-label="Previous scene">&#8592;</button>
+    <button id="play" aria-label="Pause">&#10074;&#10074;</button>
+    <button id="next" aria-label="Next scene">&#8594;</button>
+  </span>
+</section>
+<div class="fail" id="fail">The 3D view couldn't load in this browser. Try a recent version of Chrome, Edge, Safari or Firefox.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+if(typeof THREE==="undefined"){document.getElementById("fail").style.display="flex";return;}
+const SANS="'IBM Plex Sans', system-ui, sans-serif", MONO="'IBM Plex Mono', ui-monospace, monospace";
+const isDark=()=>{const t=document.documentElement.dataset.theme;if(t==="dark")return true;if(t==="light")return false;return matchMedia("(prefers-color-scheme: dark)").matches;};
+
+const canvas=document.getElementById("scene");
+let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas,antialias:true});}catch(e){document.getElementById("fail").style.display="flex";return;}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,1,0.1,200);
+scene.add(new THREE.HemisphereLight(0xffffff,0x6d7a75,0.62));
+const sun=new THREE.DirectionalLight(0xffffff,1.05);sun.position.set(20,22,18);sun.target.position.set(12,0,0);scene.add(sun,sun.target);
+sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-24,right:24,top:14,bottom:-14,near:1,far:80});sun.shadow.bias=-0.0006;
+const rim=new THREE.DirectionalLight(0xcfe6ff,0.45);rim.position.set(4,10,-16);scene.add(rim);
+
+const M=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:0.7,metalness:0.05},o||{}));
+const P=(x,y,z)=>new THREE.Vector3(x,y,z);
+const ease=t=>t<=0?0:t>=1?1:t*t*(3-2*t);
+const seg=(t,a,b)=>ease((t-a)/(b-a));
+const lerp=(a,b,k)=>a+(b-a)*k;
+function rr(x,X,Y,w,h,r){x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath();}
+function makeCanvas(w,h){const c=document.createElement("canvas");c.width=w;c.height=h;const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  return {c,t,w,h,ctx:c.getContext("2d"),key:null,draw(fn,key){if(key!==undefined&&key===this.key)return;this.key=key;this.ctx.clearRect(0,0,w,h);fn(this.ctx,w,h);this.t.needsUpdate=true;}};}
+
+/* ---------- labels ---------- */
+const sprites=[];
+function tag(text,opt){opt=opt||{};const h=opt.sub?150:96;const W0=opt.w||2.4,CW=Math.round(250*W0);const cv=makeCanvas(CW,h);
+  const fn=(x,w,H)=>{x.fillStyle=opt.bg||"rgba(255,255,255,0.96)";rr(x,4,4,w-8,H-8,22);x.fill();x.strokeStyle="rgba(22,35,43,0.2)";x.lineWidth=2;x.stroke();
+    x.textAlign="center";x.textBaseline="middle";x.fillStyle=opt.fg||"#16232B";x.font=`600 ${opt.size||40}px ${SANS}`;x.fillText(cv.text,w/2,opt.sub?54:H/2);
+    if(opt.sub){x.fillStyle=opt.subfg||"#5B6B73";x.font=`400 30px ${SANS}`;x.fillText(opt.sub,w/2,106);}};
+  cv.text=text;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:cv.t,transparent:true,depthWrite:false}));
+  s.scale.set(W0,W0*h/CW,1);s.userData={cv,fn,set(t){if(t===cv.text)return;cv.text=t;cv.draw(fn);}};
+  sprites.push(s);scene.add(s);return s;}
+
+/* ---------- people ---------- */
+function person(o){
+  const g=new THREE.Group();
+  const skin=M(o.skin,{roughness:0.5}),top=M(o.top,{roughness:0.6}),bottom=M(o.bottom,{roughness:0.75}),
+        shoe=M(0x15191C,{roughness:0.4}),hairM=M(o.hair,{roughness:0.85}),eyeM=M(0x1A1410,{roughness:0.3});
+  const legGeo=new THREE.CylinderGeometry(0.075,0.062,0.78,16);legGeo.translate(0,-0.39,0);
+  const legL=new THREE.Mesh(legGeo,o.dress?skin:bottom);legL.position.set(-0.1,0.82,0);
+  const legR=new THREE.Mesh(legGeo,o.dress?skin:bottom);legR.position.set(0.1,0.82,0);
+  [legL,legR].forEach(l=>{const sh=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.07,0.25),shoe);sh.position.set(0,-0.76,0.05);l.add(sh);});
+  g.add(legL,legR);
+  let skirt=null;if(o.dress){skirt=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.34,0.62,24),bottom);skirt.position.y=0.83;g.add(skirt);}
+  else{const hips=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.24,20),bottom);hips.position.y=0.9;g.add(hips);}
+  if(o.coat){const coat=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.31,0.92,24),top);coat.position.y=1.0;g.add(coat);
+    const badge=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.1,0.02),M(0x1F5E7A));badge.position.set(0.12,1.36,0.25);g.add(badge);}
+  const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.2,0.6,24),o.inner?M(o.inner):top);torso.position.y=1.25;g.add(torso);
+  if(o.coat){const lap=new THREE.Mesh(new THREE.CylinderGeometry(0.258,0.208,0.6,24,1,true,Math.PI*0.14,Math.PI*1.72),M(0xF7F9FA,{side:THREE.DoubleSide}));lap.position.y=1.25;g.add(lap);}
+  if(o.steth){const st=new THREE.Mesh(new THREE.TorusGeometry(0.13,0.016,8,30,Math.PI*1.3),M(0x22272B,{roughness:0.3}));st.position.set(0,1.45,0.08);st.rotation.set(Math.PI*0.5,0,Math.PI*0.85);g.add(st);
+    const bell=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.02,16),M(0xB8C2C6,{metalness:0.6,roughness:0.3}));bell.position.set(0.07,1.2,0.26);bell.rotation.x=Math.PI/2;g.add(bell);}
+  if(o.lanyard){const ly=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.01,6,30,Math.PI),M(0xC94F3D));ly.position.set(0,1.53,0.04);ly.rotation.set(Math.PI*0.62,0,Math.PI);g.add(ly);
+    const card=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.11,0.01),M(0xF7F9FA));card.position.set(0,1.32,0.24);g.add(card);}
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.07,0.1,14),skin);neck.position.y=1.6;g.add(neck);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.15,28,20),skin);head.position.y=1.78;head.scale.set(0.95,1.08,1);g.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(0.162,28,20,0,Math.PI*2,0,Math.PI*(o.short?0.48:0.56)),hairM);hair.position.set(0,1.8,-0.012);hair.rotation.x=-0.35;hair.scale.set(0.97,1.08,1.02);g.add(hair);
+  if(o.bun){const bun=new THREE.Mesh(new THREE.SphereGeometry(0.075,18,14),hairM);bun.position.set(0,1.86,-0.15);g.add(bun);}
+  if(o.glasses){const gm=M(0x1E2326,{roughness:0.3});[-0.055,0.055].forEach(xx=>{const r=new THREE.Mesh(new THREE.TorusGeometry(0.035,0.006,6,20),gm);r.position.set(xx,1.8,0.145);g.add(r);});}
+  [-0.05,0.05].forEach(x=>{const e=new THREE.Mesh(new THREE.SphereGeometry(0.017,10,8),eyeM);e.position.set(x,1.8,0.14);g.add(e);});
+  const armGeo=new THREE.CylinderGeometry(0.056,0.046,0.58,14);armGeo.translate(0,-0.29,0);
+  const mkArm=x=>{const a=new THREE.Mesh(armGeo,top);a.position.set(x,1.5,0);a.rotation.z=x<0?-0.07:0.07;
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(0.055,14,10),skin);hand.position.y=-0.61;a.add(hand);
+    const sh=new THREE.Mesh(new THREE.SphereGeometry(0.075,16,12),top);a.add(sh);return a;};
+  const armL=mkArm(-0.3),armR=mkArm(0.3);g.add(armL,armR);
+  g.userData={legL,legR,armL,armR,skirt};scene.add(g);return g;
+}
+function walk(p,t,moving){const a=moving?Math.sin(t*9)*0.45:0;p.userData.legL.rotation.x=a;p.userData.legR.rotation.x=-a;p.userData.armL.rotation.x=-a*0.6;if(!p.userData.holdR)p.userData.armR.rotation.x=a*0.6;}
+
+/* ---------- environment ---------- */
+const floorMat=M(0xC5D1CE,{roughness:1});
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(80,40),floorMat);floor.rotation.x=-Math.PI/2;floor.position.set(12,0,0);scene.add(floor);
+function zone(x,w,color){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,5.6),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.34}));m.rotation.x=-Math.PI/2;m.position.set(x,0.006,0.6);scene.add(m);}
+zone(3,12.5,0x2B7FA8);zone(22.5,11,0x14A06A);
+const wallMat=M(0xEEF2F1,{roughness:0.9});
+function wall(x,w){const m=new THREE.Mesh(new THREE.BoxGeometry(w,3.6,0.12),wallMat);m.position.set(x,1.8,-1.75);scene.add(m);return m;}
+wall(3,12.5);wall(22.5,11);
+const win=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.1),new THREE.MeshBasicMaterial({color:0xA9D6EA}));win.position.set(-2.2,2.1,-1.68);scene.add(win);
+const winFrame=new THREE.Mesh(new THREE.BoxGeometry(1.95,1.25,0.04),M(0x6E7C82));winFrame.position.set(-2.2,2.1,-1.7);scene.add(winFrame);
+const wardSign=tag("Orthopaedic ward",{w:2.6});wardSign.position.set(3,3.9,-1.6);
+const pharmSign=tag("Hospital pharmacy",{w:2.6});pharmSign.position.set(22.5,3.9,-1.6);
+
+/* bed */
+const bed=new THREE.Group();scene.add(bed);
+const frameM=M(0xB8C2C6,{metalness:0.5,roughness:0.35});
+const bedBase=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.12,2.15),frameM);bedBase.position.set(0,0.42,-0.2);
+const mattress=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.16,2.05),M(0xF4F6F5));mattress.position.set(0,0.56,-0.2);
+const pillow=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.12,0.38),M(0xFFFFFF));pillow.position.set(0,0.69,-1.0);
+const headboard=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.9,0.06),frameM);headboard.position.set(0,0.75,-1.28);
+const blanket=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,1.12,28,1,false,Math.PI/2,Math.PI),M(0x6FA7C9,{roughness:0.95}));blanket.rotation.x=Math.PI/2;blanket.scale.set(1,1,0.78);blanket.position.set(0,0.64,0.31);
+bed.add(bedBase,mattress,pillow,headboard,blanket);
+[[-0.45,-1.2],[0.45,-1.2],[-0.45,0.8],[0.45,0.8]].forEach(([x,z])=>{const l=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.42,8),frameM);l.position.set(x,0.21,z);bed.add(l);});
+const drip=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,1.9,8),frameM);drip.position.set(-0.75,0.95,-1.0);scene.add(drip);
+const bag=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.24,0.05),M(0xD6EEF7,{transparent:true,opacity:0.85}));bag.position.set(-0.75,1.75,-1.0);scene.add(bag);
+
+/* junior's workstation */
+const LX=6.2;
+const desk=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.08,0.85),M(0xD9C7A8,{roughness:0.6}));desk.position.set(LX,0.9,-0.95);scene.add(desk);
+[[-0.9,-0.3],[0.9,-0.3],[-0.9,0.3],[0.9,0.3]].forEach(([x,z])=>{const l=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.88,0.06),M(0x6E5E48));l.position.set(LX+x,0.44,-0.95+z);scene.add(l);});
+const pcMon=new THREE.Mesh(new THREE.BoxGeometry(0.75,0.48,0.04),M(0x1A252C));pcMon.position.set(LX-0.35,1.28,-1.2);scene.add(pcMon);
+const pcScr=new THREE.Mesh(new THREE.PlaneGeometry(0.69,0.42),new THREE.MeshBasicMaterial({color:0x6FB3D2}));pcScr.position.set(LX-0.35,1.28,-1.177);scene.add(pcScr);
+const folderCols=[0xC94F3D,0xE0A43A,0x3F7FB8,0x4E9E6A,0x8E5BB8,0xD07A3A];
+folderCols.forEach((c,i)=>{const f=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.05,0.32),M(c));f.position.set(LX+0.75,0.97+i*0.055,-0.95);f.rotation.y=(i%2?0.08:-0.06);scene.add(f);});
+const folderTag=tag("6 more discharges",{w:1.9,size:38});folderTag.position.set(LX+1.45,1.5,-0.3);
+const clockCv=makeCanvas(512,256);
+const clock=new THREE.Mesh(new THREE.PlaneGeometry(1.1,0.55),new THREE.MeshBasicMaterial({map:clockCv.t}));clock.position.set(LX-1.4,2.7,-1.68);scene.add(clock);
+function drawClock(time,note){clockCv.draw((x,w,h)=>{x.fillStyle="#16232B";rr(x,0,0,w,h,24);x.fill();x.fillStyle="#FFC845";x.font=`600 120px ${MONO}`;x.textAlign="center";x.fillText(time,w/2,140);x.fillStyle="#9AAAB1";x.font=`400 36px ${SANS}`;x.fillText(note,w/2,212);},time+note);}
+
+/* pharmacy counter */
+const CX=21;
+const counter=new THREE.Mesh(new THREE.BoxGeometry(2.8,0.95,0.8),M(0xF2F5F4,{roughness:0.5}));counter.position.set(CX,0.475,0);scene.add(counter);
+const stand=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.35,0.1),M(0x1A252C));stand.position.set(CX,1.12,-0.05);scene.add(stand);
+const monFrame=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.96,0.06),M(0x1A252C));monFrame.position.set(CX,1.72,-0.1);scene.add(monFrame);
+const monCv=makeCanvas(1024,640);
+const mon=new THREE.Mesh(new THREE.PlaneGeometry(1.42,0.88),new THREE.MeshBasicMaterial({map:monCv.t}));mon.position.set(CX,1.72,-0.065);scene.add(mon);
+const shelf=new THREE.Mesh(new THREE.BoxGeometry(3.4,1.8,0.4),M(0xD9E0DE));shelf.position.set(CX+0.2,1.5,-1.45);scene.add(shelf);
+const boxCols=[0xE57373,0x64B5F6,0x81C784,0xFFD54F,0xBA68C8,0x4DB6AC];
+for(let r=0;r<3;r++)for(let i=0;i<8;i++){const b=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.36,0.22),M(boxCols[(r*3+i)%6]));b.position.set(CX-1.3+i*0.38,0.88+r*0.55,-1.28);scene.add(b);}
+const door=new THREE.Group();scene.add(door);
+const dm=M(0x2E3A40);
+[[-0.6],[0.6]].forEach(([x])=>{const p=new THREE.Mesh(new THREE.BoxGeometry(0.12,2.4,0.14),dm);p.position.set(26.5+x,1.2,0.6);door.add(p);});
+const lintel=new THREE.Mesh(new THREE.BoxGeometry(1.34,0.14,0.14),dm);lintel.position.set(26.5,2.45,0.6);door.add(lintel);
+const glow=new THREE.Mesh(new THREE.PlaneGeometry(1.08,2.3),new THREE.MeshBasicMaterial({color:0xFFF3C4,transparent:true,opacity:0.55}));glow.position.set(26.5,1.17,0.55);door.add(glow);
+const exitTag=tag("Way home",{w:1.5,size:42});exitTag.position.set(26.5,2.95,0.6);
+
+/* people */
+const mary=person({skin:0xB98060,top:0x8E2C5E,bottom:0x5E1B40,hair:0xB7B1AB,dress:true,bun:true});
+const rao=person({skin:0x9A6440,top:0xF7F9FA,bottom:0x2B2F38,hair:0x9C9690,inner:0x3A5C8C,coat:true,steth:true,glasses:true,short:true});
+const lee=person({skin:0xD8A884,top:0x2C7DA0,bottom:0x2C7DA0,hair:0x1A1512,lanyard:true,short:true});
+const pharm=person({skin:0x8A5A3C,top:0xF7F9FA,bottom:0x22304A,hair:0x17130F,inner:0x2A8C8C,coat:true});
+const maryTag=tag("Mary, 74",{w:1.2,size:42});const raoTag=tag("Dr. Rao, senior",{w:1.9,size:42});const leeTag=tag("Dr. Lee, junior",{w:1.9,size:42});const phTag=tag("Pharmacist",{w:1.5,size:42});
+const clip=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.3,0.02),M(0x8B6B4A));scene.add(clip);
+const phone=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.12,0.02),M(0x15191C));scene.add(phone);
+const phone2=phone.clone();scene.add(phone2);
+const medBag=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.3,0.12),M(0xE9DCC0,{roughness:0.9}));scene.add(medBag);
+
+/* documents */
+const sumCv=makeCanvas(1024,640),rxCv=makeCanvas(1024,640);
+const docMat=cv=>new THREE.MeshBasicMaterial({map:cv.t,transparent:true,side:THREE.DoubleSide});
+const sumDoc=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.19),docMat(sumCv));scene.add(sumDoc);
+const rxDoc=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.19),docMat(rxCv));scene.add(rxDoc);
+const SUM_HOME=P(1.6,2.55,-1.2),RX_HOME=P(LX+1.6,2.55,-1.2),SUM_CMP=P(2.4,2.15,0.4),RX_CMP=P(4.55,2.15,0.4),RX_PH=P(CX+1.9,2.75,-0.6);
+const ST={n:{bg:null,fg:"#16232B"},hi:{bg:"#FCEAE8",fg:"#B3261E",bar:"#B3261E"},lo:{bg:"#FBF1DC",fg:"#8A5A00",bar:"#D99A1E"},
+  gh:{bg:"#FCEAE8",fg:"#B3261E",bar:"#B3261E",dash:true},ok:{bg:"#E5F2EA",fg:"#2E6B4A",bar:"#2E6B4A"}};
+function drawDoc(cv,title,author,band,lines){cv.draw((x,w,h)=>{
+  x.fillStyle="#FFFFFF";rr(x,0,0,w,h,26);x.fill();x.fillStyle=band;rr(x,0,0,w,110,26);x.fill();x.fillRect(0,80,w,30);
+  x.fillStyle="#FFFFFF";x.font=`600 52px ${SANS}`;x.textBaseline="middle";x.fillText(title,40,58);
+  x.fillStyle="#5B6B73";x.font=`400 30px ${SANS}`;x.fillText(author,40,150);x.fillText("Patient: Mary Thomas, 74, MRN 48213",40,192);
+  x.strokeStyle="#D9E0DE";x.lineWidth=3;x.beginPath();x.moveTo(40,225);x.lineTo(w-40,225);x.stroke();
+  lines.forEach((l,i)=>{const s=ST[l.st||"n"],Y=255+i*112;
+    if(s.bg){x.fillStyle=s.bg;rr(x,30,Y,w-60,92,14);x.fill();}
+    if(s.dash){x.setLineDash([14,10]);x.strokeStyle=s.bar;x.lineWidth=3;rr(x,30,Y,w-60,92,14);x.stroke();x.setLineDash([]);}
+    else if(s.bar){x.fillStyle=s.bar;x.fillRect(30,Y,10,92);}
+    x.fillStyle=s.fg;x.font=`${l.st==="gh"?"italic 400":"500"} 44px ${l.st==="gh"?SANS:MONO}`;x.fillText(l.t,64,Y+48);
+    if(l.note){x.font=`600 28px ${SANS}`;x.textAlign="right";x.fillText(l.note,w-56,Y+48);x.textAlign="left";}
+  });},JSON.stringify([title,author,lines]));}
+const SUM_LINES=["Continue metformin 500 mg BID","Continue sertraline 50 mg OD","Start Dolo 650 TDS for pain"];
+function drawSum(states){drawDoc(sumCv,"Discharge summary","Dr. Rao (senior), 14:10",
+  "#1F5E7A",SUM_LINES.map((t,i)=>({t,st:states?states[i]:"n"})).slice(0,states&&states.n!==undefined?states.n:3));}
+function drawSumN(n){drawDoc(sumCv,"Discharge summary","Dr. Rao (senior), 14:10","#1F5E7A",SUM_LINES.slice(0,n).map(t=>({t})));}
+function drawRx(lines){drawDoc(rxCv,"Prescription","Dr. Lee (junior), 19:40","#5A43E6",lines);}
+const RX_BAD=[{t:"Metformin 1000 mg BID"},{t:"Paracetamol 650 mg TDS"}];
+const RX_MARKED=[{t:"Metformin 1000 mg BID",st:"hi",note:"dose doubled"},{t:"Sertraline 50 mg OD",st:"gh",note:"missing"},{t:"Paracetamol 650 mg TDS",st:"lo",note:"brand changed"}];
+const RX_FIXED=[{t:"Metformin 500 mg BID",st:"ok",note:"fixed"},{t:"Sertraline 50 mg OD",st:"ok",note:"added"},{t:"Dolo 650 TDS",st:"ok",note:"confirmed"}];
+
+/* handoff chips */
+const chips=[tag("metformin 500 mg BID",{w:2.2,size:38,bg:"#E3EEF3",fg:"#1F5E7A"}),tag("sertraline 50 mg OD",{w:2.2,size:38,bg:"#E3EEF3",fg:"#1F5E7A"}),tag("Dolo 650 TDS",{w:2.2,size:38,bg:"#E3EEF3",fg:"#1F5E7A"})];
+const handoffTag=tag("\"Discharge Mary tonight, meds per summary\"",{w:3.8,size:34});
+const warns=[tag("Twice the intended metformin dose",{w:3.0,size:34,bg:"#FCEAE8",fg:"#B3261E"}),tag("Antidepressant stopped suddenly",{w:3.0,size:34,bg:"#FCEAE8",fg:"#B3261E"}),tag("Chosen brand swapped, unconfirmed",{w:3.0,size:34,bg:"#FBF1DC",fg:"#8A5A00"})];
+const safeTag=tag("Right medicines, right doses",{w:3.0,size:36,bg:"#E5F2EA",fg:"#2E6B4A"});
+const callPart=new THREE.Mesh(new THREE.SphereGeometry(0.1,16,12),new THREE.MeshBasicMaterial({color:0xFFC845}));scene.add(callPart);
+const callTag=tag("Phone call",{w:1.5,size:38,bg:"#FFC845",fg:"#2A2100"});
+const sgTag=tag("ScriptGuard: 2 high, 1 low",{w:2.8,size:38,bg:"#16232B",fg:"#FFFFFF"});
+
+/* monitor */
+function drawMon(s){monCv.draw((x,w,h)=>{
+  x.fillStyle="#FFFFFF";x.fillRect(0,0,w,h);x.fillStyle="#F3F5F4";x.fillRect(0,0,w,70);
+  x.fillStyle="#16232B";x.font=`600 30px ${SANS}`;x.textBaseline="middle";x.fillText("ScriptGuard",30,35);
+  x.fillStyle="#5B6B73";x.font=`400 26px ${SANS}`;x.fillText("Counter 1",230,35);x.textBaseline="alphabetic";
+  if(s==="idle"){x.fillStyle="#5B6B73";x.font=`400 38px ${SANS}`;x.fillText("Waiting for the next token",30,200);return;}
+  x.fillStyle="#1F5E7A";x.font=`600 72px ${SANS}`;x.fillText("T-042",30,160);
+  x.fillStyle="#16232B";x.font=`500 36px ${SANS}`;x.fillText("Mary Thomas",290,132);x.fillStyle="#5B6B73";x.font=`400 26px ${SANS}`;x.fillText("MRN 48213",290,168);
+  if(s==="fixed"){x.fillStyle="#2E6B4A";x.font=`600 40px ${SANS}`;x.fillText("All 3 resolved with Dr. Lee",30,270);x.fillStyle="#5B6B73";x.font=`400 30px ${SANS}`;x.fillText("Corrected prescription received. Ready to dispense.",30,330);return;}
+  x.fillStyle="#16232B";x.font=`400 28px ${SANS}`;x.fillText("3 mismatches in 3 medicines checked",30,225);
+  [["High","#B3261E","#FCEAE8","Metformin","Summary 500 mg BID, prescription 1000 mg BID"],["High","#B3261E","#FCEAE8","Sertraline","In the summary, missing from the prescription"],["Low","#8A5A00","#FBF1DC","Paracetamol","Summary says Dolo 650: confirm brand intent"]]
+  .forEach(([sv,c,bg,d,t],i)=>{const Y=255+i*110;x.fillStyle=bg;rr(x,30,Y,w-60,96,12);x.fill();x.fillStyle=c;x.fillRect(30,Y,10,96);
+    x.font=`600 26px ${SANS}`;x.fillText(sv,62,Y+40);x.fillStyle="#16232B";x.font=`600 30px ${SANS}`;x.fillText(d,150,Y+40);x.fillStyle="#3B4A52";x.font=`400 25px ${SANS}`;x.fillText(t,150,Y+78);});
+},s);}
+
+/* ---------- scenes ---------- */
+const BEDPOS=P(0,0.87,0.85),RAO_BED=P(1.05,0,0.1),LEE_DESK=P(LX-0.1,0,-0.2),PH_POS=P(CX-0.9,0,-0.85),MARY_CTR=P(CX+0.1,0,1.35),DOOR=P(26.5,0,1.0);
+const SCENES=[
+ {t:"Discharge day on the ward",w:"Ward, 14:00",c:"",cam:[P(3.2,3.5,6.6),P(1.2,1.2,-0.4)],dur:6,
+  b:"Mary, 74, is recovering from a hip operation and is going home today. Her senior doctor comes by to plan her discharge.",
+  x:`<pre>Mary's medicines in hospital
+  metformin   500 mg  twice daily   diabetes
+  sertraline   50 mg  once daily    depression
+  Dolo 650    650 mg  three times   pain (new)</pre>`},
+ {t:"The senior doctor writes the discharge summary",w:"Ward, 14:10",c:"",cam:[P(1.9,2.5,5.0),P(1.2,1.9,-0.7)],dur:7,
+  b:"Dr. Rao writes the plan: keep metformin and sertraline, and start Dolo 650 for pain. He chose that brand on purpose but, being busy, doesn't write down why.",x:""},
+ {t:"The handoff",w:"Ward, evening",c:"bad",cam:[P(3.8,3.4,7.6),P(3.6,1.6,-0.4)],dur:8,
+  b:"Dr. Rao is called away to theatre. He leaves a one-line handoff and the prescription goes to Dr. Lee, a junior doctor. On the way, details slip.",
+  x:`<ul class="list"><li>500 mg quietly becomes 1000 mg</li><li>Sertraline falls out of the list</li><li>The Dolo brand becomes generic paracetamol</li></ul>`},
+ {t:"A junior doctor, late in a 12-hour shift",w:"Ward, 19:40",c:"bad",cam:[P(7.0,2.6,5.0),P(6.8,1.8,-0.8)],dur:7,
+  b:"Dr. Lee has six other discharges waiting. Working from memory and the handoff, she writes Mary's prescription in a couple of minutes.",x:""},
+ {t:"Can you spot the differences?",w:"Same patient, two papers",c:"bad",cam:[P(3.5,2.3,4.1),P(3.5,2.15,0.4)],dur:9,
+  b:"Both documents look reasonable on their own. Side by side, three things don't match. At a busy counter, most people wouldn't catch them at a glance.",
+  x:`<ul class="list"><li><b>Metformin:</b> 500 mg in the summary, 1000 mg on the prescription</li><li><b>Sertraline:</b> in the summary, missing from the prescription</li><li><b>Pain relief:</b> Dolo 650 in the summary, generic paracetamol on the prescription</li></ul>`},
+ {t:"Without a check, Mary goes home like this",w:"Pharmacy, no check",c:"bad",cam:[P(23.6,3.4,8.4),P(23.4,1.3,0.2)],dur:9,
+  b:"The pharmacy dispenses what the prescription says. Nothing looks wrong, so nobody asks. Mary leaves with the wrong set of medicines.",
+  x:`<ul class="list"><li>Twice the dose of diabetes medicine her doctor intended</li><li>Her antidepressant stopped abruptly, which can cause withdrawal symptoms and relapse</li><li>A brand switch nobody confirmed with the prescriber</li></ul>`},
+ {t:"Same day, with ScriptGuard",w:"Pharmacy, with ScriptGuard",c:"good",cam:[P(21.4,2.6,5.6),P(21.3,1.9,-0.2)],dur:7,
+  b:"Mary uploads both papers at the kiosk and gets token T-042. By the time she's called, the pharmacist's screen already shows two high flags and one low flag.",x:""},
+ {t:"One phone call fixes it",w:"Pharmacy to ward",c:"good",cam:[P(13.6,5.4,14.5),P(13.6,1.8,-0.4)],dur:9,
+  b:"The pharmacist calls Dr. Lee. She checks the summary, corrects the metformin dose, adds sertraline, and confirms Dolo 650 was intended. The corrected prescription comes back before Mary reaches the counter.",x:""},
+ {t:"Mary goes home with the right medicines",w:"Pharmacy, with ScriptGuard",c:"good",cam:[P(23.6,3.4,8.4),P(23.4,1.3,0.2)],dur:8,
+  b:"Same patient, same doctors, same busy day. The only difference is that the two papers were checked against each other before anything was dispensed.",
+  x:`<pre>ScriptGuard flagged:   2 high, 1 low
+Resolved by:          one call to the prescriber
+Time at the counter:  a few extra minutes</pre>`}
+];
+
+const SPEED=2;
+let scene_i=0,start=0,playing=!matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function face(a,b){return Math.atan2(b.x-a.x,b.z-a.z);}
+function lie(){mary.position.copy(BEDPOS);mary.rotation.set(-Math.PI/2,0,0);if(mary.userData.skirt)mary.userData.skirt.visible=false;walk(mary,0,false);maryTag.position.set(0,1.45,-1.0);}
+function standAt(p,ry){mary.position.copy(p);mary.rotation.set(0,ry,0);if(mary.userData.skirt)mary.userData.skirt.visible=true;}
+function hold(personObj,obj,off){personObj.updateMatrixWorld();obj.position.copy(personObj.localToWorld(off.clone()));obj.rotation.copy(personObj.rotation);}
+
+function reset(s){
+  // Mary
+  if(s<=4)lie();else standAt(MARY_CTR,Math.PI);
+  mary.userData.holdR=false;mary.userData.armR.rotation.x=0;
+  // Rao
+  rao.visible=s<=2;rao.position.copy(s===0?P(-3.5,0,2.2):RAO_BED);rao.rotation.set(0,-Math.PI/2,0);rao.userData.holdR=true;rao.userData.armR.rotation.x=-0.9;walk(rao,0,false);
+  clip.visible=s<=2;
+  // Lee
+  lee.position.copy(LEE_DESK);lee.rotation.set(0,Math.PI*0.75,0);lee.userData.armR.rotation.x=0;lee.userData.holdR=false;walk(lee,0,false);
+  phone.visible=false;phone2.visible=false;
+  // pharmacist
+  pharm.position.copy(PH_POS);pharm.rotation.set(0,0.25,0);pharm.userData.armR.rotation.x=0;
+  // documents
+  sumDoc.visible=s>=1&&s!==5&&s<6;rxDoc.visible=s>=3;
+  sumDoc.position.copy(s===4?SUM_CMP:SUM_HOME);sumDoc.scale.set(1,1,1);
+  rxDoc.position.copy(s===4?RX_CMP:s>=6?RX_PH:RX_HOME);rxDoc.scale.setScalar(s>=6?0.8:1);
+  if(s===1)drawSumN(0);else drawSum(s===4?["hi","hi","lo"]:null);
+  if(s===3)drawRx([]);else if(s===4||s===6)drawRx(RX_MARKED);else if(s===7)drawRx(RX_MARKED);else if(s===8)drawRx(RX_FIXED);else drawRx(RX_BAD);
+  if(s===5)rxDoc.visible=false;
+  drawClock(s>=3&&s<=4?"19:40":"14:10",s>=3&&s<=4?"Hour 12 of 12":"Shift hour 6");
+  drawMon(s===6||s===7?"flags":s===8?"fixed":"idle");
+  chips.forEach(c=>{c.visible=false;c.material.opacity=1;});handoffTag.visible=false;
+  warns.forEach(w=>w.visible=false);safeTag.visible=false;callPart.visible=false;callTag.visible=false;
+  sgTag.visible=s>=6&&s<=7;sgTag.position.set(CX-0.9,3.0,0.2);
+  medBag.visible=false;medBag.material.color.set(0xE9DCC0);
+}
+
+function update(s,t){
+  const tags=[[mary,maryTag,2.2],[rao,raoTag,2.2],[lee,leeTag,2.2],[pharm,phTag,2.2]];
+  if(s===0){const A=P(-3.5,0,2.2),k=seg(t,0.4,3.8);rao.position.lerpVectors(A,RAO_BED,k);rao.rotation.y=k<1?face(A,RAO_BED):-Math.PI/2;walk(rao,t,k>0&&k<1);}
+  if(s===1){drawSumN(Math.min(3,Math.floor(seg(t,0.8,4.5)*3+0.001)));rao.userData.armR.rotation.x=-0.9+Math.sin(t*6)*0.08;}
+  if(s===2){
+    const k=seg(t,0.3,3.2);rao.position.lerpVectors(RAO_BED,P(-4,0,2.4),k);rao.rotation.y=face(RAO_BED,P(-4,0,2.4));walk(rao,t,k>0&&k<1);clip.visible=rao.visible=k<0.98;
+    handoffTag.visible=t>0.6&&t<7;handoffTag.position.set(2.8,3.35,0);
+    const from=[P(1.6,2.75,-1.0),P(1.6,2.45,-1.0),P(1.6,2.15,-1.0)],to=[P(LX,2.7,0),P(LX,2.4,0),P(LX,2.1,0)];
+    chips.forEach((c,i)=>{const kk=seg(t,1.2+i*0.5,4.6+i*0.5);c.visible=t>1.2+i*0.5;c.position.lerpVectors(from[i],to[i],kk);c.position.y+=Math.sin(kk*Math.PI)*0.6;
+      if(i===1){c.position.y-=seg(t,2.6,5)*1.6;c.material.opacity=1-seg(t,3.2,5.4);}
+    });
+    if(t>3.2)chips[0].userData.set("metformin 1000 mg BID");else chips[0].userData.set("metformin 500 mg BID");
+    if(t>4.2)chips[2].userData.set("paracetamol 650 mg TDS");else chips[2].userData.set("Dolo 650 TDS");
+  }
+  if(s===3){const n=Math.floor(seg(t,1,4.2)*2+0.001);drawRx(RX_BAD.slice(0,n));lee.userData.armR.rotation.x=-0.7+Math.sin(t*14)*0.06;lee.userData.armL.rotation.x=-0.7+Math.cos(t*14)*0.06;lee.userData.holdR=true;}
+  if(s===4){const k=seg(t,0,1.6);sumDoc.position.lerpVectors(SUM_HOME,SUM_CMP,k);rxDoc.position.lerpVectors(RX_HOME,RX_CMP,k);
+    if(t<1.8){drawSum(null);drawRx([...RX_BAD.slice(0,1),{t:"Paracetamol 650 mg TDS"}]);}else{drawSum(["hi","hi","lo"]);drawRx(RX_MARKED);}}
+  if((s===5||s===8)){
+    medBag.visible=true;
+    const k1=seg(t,0.4,1.6);
+    if(t<1.6){mary.rotation.y=Math.PI;mary.position.copy(MARY_CTR);medBag.position.lerpVectors(P(CX,1.05,0.1),P(CX+0.25,1.0,1.2),k1);medBag.rotation.set(0,0,0);}
+    else{const k=seg(t,1.8,6.2);mary.position.lerpVectors(MARY_CTR,DOOR,k);mary.rotation.y=k<1?Math.PI/2:Math.PI/2;walk(mary,t,k>0&&k<1);mary.userData.holdR=true;mary.userData.armR.rotation.x=-0.15;hold(mary,medBag,P(0.32,0.88,0.05));
+      if(k>=1){mary.position.x=DOOR.x+seg(t,6.2,7.4)*1.2;}}
+    if(s===8&&t>1.6)medBag.material.color.set(0xCDEBD6);
+    if(s===5)warns.forEach((w,i)=>{w.visible=t>2.4+i*1.1;w.position.set(mary.position.x,2.75+i*0.42,mary.position.z);});
+    if(s===8){safeTag.visible=t>2.2;safeTag.position.set(mary.position.x,2.75,mary.position.z);}
+  }
+  if(s===6){pharm.rotation.y=0.25;}
+  if(s===7){
+    pharm.userData.armR.rotation.x=-2.3;lee.userData.armR.rotation.x=-2.3;lee.userData.holdR=true;lee.rotation.y=0.2;
+    phone.visible=true;hold(pharm,phone,P(0.22,1.78,0.08));phone2.visible=true;hold(lee,phone2,P(0.22,1.78,0.08));
+    const L=4,lt=t%L,a=P(CX-0.9,2.3,-0.6),b=P(LX,2.3,0);
+    callPart.visible=t<6.5;const k=lt<2?seg(lt,0,2):1-seg(lt,2,4);callPart.position.lerpVectors(a,b,k);callPart.position.y+=Math.sin(k*Math.PI)*2.0;
+    callTag.visible=callPart.visible;callTag.position.set(callPart.position.x,callPart.position.y+0.5,callPart.position.z);
+    const fixedN=Math.floor(seg(t,2.5,6.5)*3+0.001);drawRx(RX_FIXED.slice(0,fixedN).concat(RX_MARKED.slice(fixedN)));
+    if(t>6.8)drawMon("fixed");
+  }
+  tags.forEach(([p,tg,h])=>{tg.visible=p.visible;if(p===mary&&s<=4){tg.position.set(BEDPOS.x,1.5,BEDPOS.z-1.1);}else{tg.position.set(p.position.x,p.position.y+h,p.position.z);}});
+  if(clip.visible){hold(rao,clip,P(0.3,1.0,0.25));}
+}
+
+/* ---------- panel + controls ---------- */
+const $=id=>document.getElementById(id);
+
+function panel(){const S=SCENES[scene_i];$("count").textContent=`${scene_i+1}/${SCENES.length}`;$("ttl").textContent=S.t;
+  $("prev").disabled=scene_i===0;$("next").disabled=scene_i===SCENES.length-1;}
+function go(s){scene_i=Math.max(0,Math.min(SCENES.length-1,s));start=performance.now();reset(scene_i);panel();}
+function setPlaying(p){playing=p;$("play").innerHTML=p?"&#10074;&#10074;":"&#9654;";$("play").setAttribute("aria-label",p?"Pause":"Play");}
+$("prev").onclick=()=>go(scene_i-1);$("next").onclick=()=>go(scene_i+1);
+$("play").onclick=()=>{if(!playing&&scene_i===SCENES.length-1)go(0);setPlaying(!playing);};
+addEventListener("keydown",e=>{if(e.key==="ArrowRight")go(scene_i+1);if(e.key==="ArrowLeft")go(scene_i-1);if(e.key===" "){e.preventDefault();$("play").click();}});
+
+function theme(){const d=isDark();scene.background=new THREE.Color(d?0x0B1115:0xDCE4E2);floorMat.color.set(d?0x1B262C:0xC5D1CE);wallMat.color.set(d?0x2A363D:0xEEF2F1);}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",theme);
+new MutationObserver(theme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener("resize",resize);
+
+const camPos=P(0,0,0),camLook=P(0,0,0);let camInit=false,last=performance.now();
+function frame(now){requestAnimationFrame(frame);const dt=Math.min(0.05,(now-last)/1000);last=now;const t=(now-start)/1000*SPEED;
+  update(scene_i,t);
+  const [pos,look]=SCENES[scene_i].cam;const f=camera.aspect<0.9?1.65:camera.aspect<1.3?1.25:1;
+  const tp=look.clone().add(pos.clone().sub(look).multiplyScalar(f));
+  if(!camInit){camPos.copy(tp);camLook.copy(look);camInit=true;}
+  const k=1-Math.exp(-dt*4.2);camPos.lerp(tp,k);camLook.lerp(look,k);camera.position.copy(camPos);camera.lookAt(camLook);
+  renderer.render(scene,camera);
+  if(playing&&t>SCENES[scene_i].dur){if(scene_i<SCENES.length-1)go(scene_i+1);else setPlaying(false);}
+}
+function boot(){sprites.forEach(s=>s.userData.cv.draw(s.userData.fn));
+  scene.traverse(o=>{if(o.isMesh&&!o.material.isMeshBasicMaterial&&o!==floor){o.castShadow=true;o.receiveShadow=true;}});floor.receiveShadow=true;
+  theme();resize();setPlaying(playing);go(0);requestAnimationFrame(frame);}
+const ready=document.fonts&&document.fonts.ready?Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]):Promise.resolve();
+ready.then(boot);
+})();
+</script>
+</body>
+</html>

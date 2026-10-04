@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScriptGuard pharmacist dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F4;--panel:#FFFFFF;--ink:#16232B;--muted:#5B6B73;--line:#D9E0DE;
+  --accent:#1F5E7A;--accent-bg:#E3EEF3;
+  --high:#B3261E;--high-bg:#FCEAE8;--low:#8A5A00;--low-bg:#FBF1DC;
+  --ok:#2E6B4A;--ok-bg:#E5F2EA;--wait:#5B6B73;--wait-bg:#ECEFEE;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F161A;--panel:#172127;--ink:#E6ECEE;--muted:#9AAAB1;--line:#2A363D;
+    --accent:#6FB3D2;--accent-bg:#17303C;
+    --high:#F2A49E;--high-bg:#3A1D1B;--low:#E8C27A;--low-bg:#33280F;
+    --ok:#8FD1AC;--ok-bg:#17301F;--wait:#9AAAB1;--wait-bg:#1F2A30;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F161A;--panel:#172127;--ink:#E6ECEE;--muted:#9AAAB1;--line:#2A363D;
+  --accent:#6FB3D2;--accent-bg:#17303C;
+  --high:#F2A49E;--high-bg:#3A1D1B;--low:#E8C27A;--low-bg:#33280F;
+  --ok:#8FD1AC;--ok-bg:#17301F;--wait:#9AAAB1;--wait-bg:#1F2A30;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand h1{font-size:18px;font-weight:600;margin:0;letter-spacing:-0.01em}
+.brand span{color:var(--muted);font-size:14px}
+.switch{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.switch button{background:none;border:0;padding:7px 14px;font-size:14px;color:var(--muted)}
+.switch button[aria-pressed="true"]{background:var(--accent-bg);color:var(--accent);font-weight:500}
+
+.wrap{max-width:1180px;margin:0 auto;padding:20px 24px 40px}
+.grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+
+.queue{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.queue h2{font-size:14px;font-weight:500;color:var(--muted);margin:0;padding:12px 16px;border-bottom:1px solid var(--line)}
+.qitem{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 16px}
+.qitem:last-child{border-bottom:0}
+.qitem[aria-current="true"]{background:var(--accent-bg)}
+.qtok{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
+.qname{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qsub{font-size:12px;color:var(--muted)}
+
+.pill{display:inline-block;font-size:12px;font-weight:500;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-high{background:var(--high-bg);color:var(--high)}
+.p-low{background:var(--low-bg);color:var(--low)}
+.p-ok{background:var(--ok-bg);color:var(--ok)}
+.p-wait{background:var(--wait-bg);color:var(--wait)}
+.p-review{background:var(--low-bg);color:var(--low)}
+
+.case{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 24px}
+.head{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.token{font-size:64px;line-height:0.9;font-weight:600;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:var(--accent)}
+.who h2{margin:0;font-size:20px;font-weight:500}
+.who p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.sources{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}
+.sources b{font-weight:500;color:var(--ink)}
+
+.summary{margin:18px 0 8px;font-size:15px}
+.flag{border:1px solid var(--line);border-radius:8px;margin-top:12px;overflow:hidden}
+.flag.high{border-left:4px solid var(--high);border-radius:0 8px 8px 0}
+.flag.low{border-left:4px solid var(--low);border-radius:0 8px 8px 0}
+.fhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px 4px}
+.fdrug{font-weight:500;text-transform:capitalize}
+.fexp{padding:0 14px 12px;margin:0;color:var(--ink)}
+.compare{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+@media (max-width:560px){.compare{grid-template-columns:1fr}}
+.compare div{padding:10px 14px}
+.compare div+div{border-left:1px solid var(--line)}
+@media (max-width:560px){.compare div+div{border-left:0;border-top:1px solid var(--line)}}
+.compare small{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.src{font-family:var(--mono);font-size:13px}
+.src.none{font-family:var(--sans);color:var(--high);font-style:italic}
+.fcheck{display:flex;gap:8px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+
+.note{background:var(--bg);border-radius:8px;padding:14px 16px;margin-top:16px;color:var(--muted)}
+.decide{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.decide label{display:block;font-weight:500;margin-bottom:6px}
+.decide textarea{width:100%;min-height:72px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);resize:vertical}
+.err{color:var(--high);font-size:13px;margin:6px 0 0;min-height:1em}
+.btn{background:var(--accent);color:var(--panel);border:0;border-radius:8px;padding:9px 18px;font-weight:500;margin-top:8px}
+.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.metric{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.metric b{display:block;font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.metric span{font-size:13px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:20px}
+.panel h2{font-size:16px;font-weight:500;margin:0 0 4px}
+.panel p.lead{margin:0 0 14px;color:var(--muted);font-size:14px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:13px;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.tok{font-weight:600;font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:220px minmax(0,1fr) 32px;gap:12px;align-items:center;font-size:14px}
+@media (max-width:560px){.bar{grid-template-columns:1fr 32px}.bar .track{grid-column:1/-1}}
+.track{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.rowhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.rowhead h2{margin:0;font-size:20px;font-weight:500}
+.rowhead p{margin:2px 0 0;color:var(--muted);font-size:14px}
+@media print{.top,.btn{display:none}body{background:#fff}}
+@media (prefers-reduced-motion:no-preference){.case{animation:in .18s ease-out}@keyframes in{from{opacity:.4}to{opacity:1}}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><h1>ScriptGuard</h1><span>Pharmacy counter 1</span></div>
+  <div class="switch" role="group" aria-label="View">
+    <button id="v-queue" aria-pressed="true" onclick="setView('queue')">Queue</button>
+    <button id="v-audit" aria-pressed="false" onclick="setView('audit')">End-of-day audit</button>
+  </div>
+</header>
+<main class="wrap" id="app"></main>
+
+<script>
+const cases = [
+  {id:"T-040",name:"Ravi Menon",mrn:"47102",status:"closed",uploaded:"13:41",checked:5,
+   flags:[{severity:"LOW",drug:"levothyroxine",type:"name_differs_confirm_brand_intent"}],
+   decision:"Confirmed Eltroxin brand with Dr. Rao; dispensed as written",closed:"13:58"},
+  {id:"T-041",name:"Anita Joseph",mrn:"47755",status:"closed",uploaded:"13:49",checked:4,flags:[],
+   decision:"No mismatches; dispensed",closed:"14:06"},
+  {id:"T-042",name:"Mary Thomas",mrn:"48213",status:"ready",uploaded:"14:02",checked:3,
+   sources:[{doc:"Discharge summary",how:"Scanned PDF, read with OCR (91% confidence)"},{doc:"Prescription",how:"Digital PDF"}],
+   flags:[
+    {severity:"HIGH",drug:"metformin",type:"dose_mismatch",
+     explanation:"The prescription doubles the metformin dose written in the summary.",
+     s:"Continue metformin 500 mg BID.",sl:2,p:"Metformin 1000 mg BID",pl:2},
+    {severity:"HIGH",drug:"sertraline",type:"missing_from_prescription",
+     explanation:"Sertraline is continued in the summary but not on the prescription.",
+     s:"Continue sertraline 50 mg OD.",sl:3,p:null,pl:null},
+    {severity:"LOW",drug:"paracetamol",type:"name_differs_confirm_brand_intent",
+     explanation:"Summary names Dolo 650, prescription names generic paracetamol. Confirm whether the brand was intended.",
+     s:"Start Dolo 650 TDS for pain.",sl:4,p:"Paracetamol 650 mg TDS",pl:3}]},
+  {id:"T-043",name:"Suresh Pillai",mrn:"48230",status:"ready",uploaded:"14:05",checked:4,
+   sources:[{doc:"Discharge summary",how:"Digital PDF"},{doc:"Prescription",how:"Phone photo, read with OCR (88% confidence)"}],
+   flags:[]},
+  {id:"T-044",name:"Fatima Rahman",mrn:"48241",status:"review",uploaded:"14:07",checked:0,
+   sources:[{doc:"Discharge summary",how:"Scanned PDF, read with OCR (54% confidence)"},{doc:"Prescription",how:"Digital PDF"}],
+   reason:"The discharge summary couldn't be read reliably. Two attempts to match the medicines to the document's lines failed. Check the original papers by hand.",flags:[]},
+  {id:"T-045",name:"George Mathew",mrn:"48252",status:"processing",uploaded:"14:09",checked:0,flags:[]},
+  {id:"T-046",name:"Lakshmi Iyer",mrn:"48266",status:"pending",uploaded:"14:11",checked:0,flags:[]}
+];
+const earlier = [
+  {id:"T-031",name:"Joseph Kurian",mrn:"46610",checked:6,flags:[{severity:"HIGH",type:"frequency_mismatch"}],decision:"Amlodipine frequency corrected to OD after call to ward",closed:"11:20"},
+  {id:"T-033",name:"Meera Nair",mrn:"46702",checked:3,flags:[],decision:"No mismatches; dispensed",closed:"11:44"},
+  {id:"T-035",name:"Abdul Kareem",mrn:"46851",checked:5,flags:[{severity:"HIGH",type:"stopped_in_summary_but_prescribed"}],decision:"Aspirin removed from prescription, stopped per summary",closed:"12:15"},
+  {id:"T-037",name:"Priya Varghese",mrn:"46990",checked:4,flags:[{severity:"LOW",type:"name_differs_confirm_brand_intent"}],decision:"Generic acceptable per Dr. Lee",closed:"12:52"},
+  {id:"T-038",name:"Thomas Philip",mrn:"47013",checked:2,flags:[],review:true,decision:"OCR unreadable; checked originals by hand, no issues",closed:"13:10"}
+];
+let view="queue", sel="T-042";
+
+const typeLabel={dose_mismatch:"Dose differs",missing_from_prescription:"Missing from prescription",
+  not_in_summary:"Not in summary",frequency_mismatch:"Frequency differs",
+  stopped_in_summary_but_prescribed:"Stopped in summary but prescribed",
+  name_differs_confirm_brand_intent:"Name differs, confirm brand"};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function statusPill(c){
+  if(c.status==="ready"){
+    const h=c.flags.filter(f=>f.severity==="HIGH").length, l=c.flags.length-h;
+    if(h) return `<span class="pill p-high">${h} high${l?` +${l}`:""}</span>`;
+    if(l) return `<span class="pill p-low">${l} low</span>`;
+    return `<span class="pill p-ok">No mismatches</span>`;
+  }
+  return {processing:`<span class="pill p-wait">Checking</span>`,pending:`<span class="pill p-wait">Waiting</span>`,
+    review:`<span class="pill p-review">Check by hand</span>`,closed:`<span class="pill p-ok">Closed</span>`}[c.status];
+}
+
+function queueHTML(){
+  const items=cases.map(c=>`<button class="qitem" aria-current="${c.id===sel}" onclick="pick('${c.id}')">
+    <span class="qtok">${c.id}</span><span><span class="qname">${esc(c.name)}</span><br><span class="qsub">Uploaded ${c.uploaded}</span></span>${statusPill(c)}</button>`).join("");
+  return `<nav class="queue" aria-label="Token queue"><h2>Today's tokens</h2>${items}</nav>`;
+}
+
+function flagHTML(f,i){
+  const cls=f.severity==="HIGH"?"high":"low", pill=f.severity==="HIGH"?"p-high":"p-low";
+  return `<article class="flag ${cls}">
+    <div class="fhead"><span class="pill ${pill}">${f.severity==="HIGH"?"High":"Low"}</span><span class="fdrug">${esc(f.drug)}</span><span class="qsub">${typeLabel[f.type]}</span></div>
+    <p class="fexp">${esc(f.explanation)}</p>
+    <div class="compare">
+      <div><small>Discharge summary${f.sl?`, line ${f.sl}`:""}</small><span class="src">${esc(f.s)}</span></div>
+      <div><small>Prescription${f.pl?`, line ${f.pl}`:""}</small>${f.p?`<span class="src">${esc(f.p)}</span>`:`<span class="src none">Not on the prescription</span>`}</div>
+    </div>
+    <label class="fcheck"><input type="checkbox" id="chk-${i}"> Resolved with the prescriber</label>
+  </article>`;
+}
+
+function caseHTML(c){
+  const head=`<div class="head"><div class="token">${c.id}</div><div class="who"><h2>${esc(c.name)}</h2><p>MRN ${c.mrn}, uploaded at ${c.uploaded}</p></div><div style="margin-left:auto">${statusPill(c)}</div></div>
+    ${c.sources?`<div class="sources">${c.sources.map(s=>`<span><b>${s.doc}:</b> ${s.how}</span>`).join("")}</div>`:""}`;
+  let body="";
+  if(c.status==="pending") body=`<div class="note">Waiting in line to be checked. If this patient is called first, check the papers by hand.</div>`;
+  else if(c.status==="processing") body=`<div class="note">Checking now. Results usually appear within a minute. If this patient is called first, check the papers by hand.</div>`;
+  else if(c.status==="closed") body=`<div class="note">Closed at ${c.closed}. Documents removed; audit record kept.<br><b style="color:var(--ink);font-weight:500">Decision:</b> ${esc(c.decision)}</div>`;
+  else{
+    if(c.status==="review") body=`<div class="note" style="background:var(--low-bg);color:var(--low)">${esc(c.reason)}</div>`;
+    else if(!c.flags.length) body=`<p class="summary">No mismatches found in ${c.checked} medicines checked.</p>`;
+    else{
+      const h=c.flags.filter(f=>f.severity==="HIGH").length;
+      body=`<p class="summary">${c.flags.length} mismatches in ${c.checked} medicines checked${h?`, ${h} high severity`:""}.</p>${c.flags.map(flagHTML).join("")}`;
+    }
+    body+=`<div class="decide"><label for="dec">Pharmacist decision</label>
+      <textarea id="dec" placeholder="Metformin corrected to 500 mg after call to Dr. Lee" oninput="document.getElementById('err').textContent=''"></textarea>
+      <p class="err" id="err" role="alert"></p>
+      <button class="btn" onclick="closeCase('${c.id}')">Close case</button></div>`;
+  }
+  return `<section class="case" aria-live="polite">${head}${body}</section>`;
+}
+
+function auditHTML(){
+  const closed=[...earlier,...cases.filter(c=>c.status==="closed")];
+  const allFlags=closed.flatMap(c=>c.flags);
+  const high=allFlags.filter(f=>f.severity==="HIGH").length;
+  const withFlags=closed.filter(c=>c.flags.length).length;
+  const reviews=closed.filter(c=>c.review).length;
+  const meds=closed.reduce((a,c)=>a+c.checked,0);
+  const counts={}; allFlags.forEach(f=>counts[f.type]=(counts[f.type]||0)+1);
+  const max=Math.max(1,...Object.values(counts));
+  const bars=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<div class="bar"><span>${typeLabel[t]}</span><span class="track"><i style="width:${Math.round(n/max*100)}%"></i></span><b style="font-weight:500;text-align:right">${n}</b></div>`).join("");
+  const rows=closed.sort((a,b)=>a.id.localeCompare(b.id)).map(c=>{
+    const h=c.flags.filter(f=>f.severity==="HIGH").length, l=c.flags.length-h;
+    const fl=c.flags.length?[h?`<span class="pill p-high">${h} high</span>`:"",l?`<span class="pill p-low">${l} low</span>`:""].join(" "):(c.review?`<span class="pill p-review">Checked by hand</span>`:`<span class="pill p-ok">None</span>`);
+    return `<tr><td class="tok">${c.id}</td><td>${esc(c.name)}<br><span class="qsub">MRN ${c.mrn}</span></td><td>${fl}</td><td>${esc(c.decision)}</td><td>${c.closed}</td></tr>`;}).join("");
+  return `<div class="rowhead"><div><h2>End-of-day audit</h2><p>Sunday 4 October 2026, counter 1. Contains no document text.</p></div><button class="btn ghost" onclick="window.print()">Print report</button></div>
+  <div class="metrics">
+    <div class="metric"><b>${closed.length}</b><span>Cases closed</span></div>
+    <div class="metric"><b>${meds}</b><span>Medicines checked</span></div>
+    <div class="metric"><b>${withFlags}</b><span>Cases with mismatches</span></div>
+    <div class="metric"><b style="color:var(--high)">${high}</b><span>High-severity flags</span></div>
+    <div class="metric"><b>${reviews}</b><span>Checked by hand</span></div>
+  </div>
+  <section class="panel"><h2>Mismatches by type</h2><p class="lead">Which kinds of discharge errors showed up today.</p><div class="bars">${bars||'<p class="qsub">No mismatches today.</p>'}</div></section>
+  <section class="panel"><h2>Closed cases</h2><p class="lead">Every case closed today, with the pharmacist's decision.</p>
+    <div class="tablewrap"><table><thead><tr><th>Token</th><th>Patient</th><th>Flags</th><th>Decision</th><th>Closed</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+function render(){
+  const app=document.getElementById("app");
+  if(view==="audit"){app.innerHTML=auditHTML();return;}
+  const c=cases.find(x=>x.id===sel);
+  app.innerHTML=`<div class="grid">${queueHTML()}${caseHTML(c)}</div>`;
+}
+function pick(id){sel=id;render();}
+function setView(v){view=v;document.getElementById("v-queue").setAttribute("aria-pressed",v==="queue");document.getElementById("v-audit").setAttribute("aria-pressed",v==="audit");render();}
+function closeCase(id){
+  const t=document.getElementById("dec"), e=document.getElementById("err"), v=t.value.trim();
+  if(!v){e.textContent="Write what you decided before closing the case.";t.focus();return;}
+  const c=cases.find(x=>x.id===id);
+  c.decision=v;c.review=c.status==="review";c.status="closed";
+  const d=new Date();c.closed=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  c.flags=c.flags.map(f=>({severity:f.severity,drug:f.drug,type:f.type}));
+  delete c.sources;render();
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}</style><style>:root{color-scheme:light dark;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}}:root[data-theme="dark"]{color-scheme:dark;--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}:root[data-theme="light"]{color-scheme:light}@media print{:root,:root[data-theme="dark"]{color-scheme:light;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}}body{background:var(--md-bg);color:var(--md-text);max-width:720px;margin:0 auto;padding:32px;display:flex;flex-direction:column;gap:10px;font:14px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',sans-serif;overflow-wrap:break-word}body>:first-child{margin-top:0}h1,h2,h3,h4,h5,h6{margin:6px 0 0;line-height:1.25;font-weight:600;text-wrap:balance}h1{font-size:1.35em}h2{font-size:1.15em;color:var(--md-muted)}h3,h4,h5,h6{font-size:1em}p,ul,ol,blockquote,table,pre,hr{margin:0}strong{font-weight:600}a{color:var(--md-link);text-decoration:none}a:hover{text-decoration:underline}ul,ol{display:flex;flex-direction:column;gap:6px;padding-left:22px}ul{list-style:disc}ol{list-style:decimal}:is(li,td,th)>*+:is(p,ul,ol,blockquote){margin-top:6px}blockquote{display:flex;flex-direction:column;gap:10px;border-left:2px solid var(--md-rule);padding-left:10px;color:var(--md-muted)}:not(pre)>code{background:var(--md-fill);padding:1px 3px;border-radius:4px;font:.92em 'SF Mono',ui-monospace,Menlo,Consolas,monospace}a>code{background:none;color:inherit}pre{background:var(--md-fill);padding:10px 12px;border-radius:6px;overflow-x:auto;font:12px/1.5 'SF Mono',ui-monospace,Menlo,Consolas,monospace;margin-block:4px}pre code{background:none;padding:0;font:inherit}table{width:100%;border-collapse:separate;border-spacing:2px;font:inherit}th,td{padding:6px 8px;border-radius:3px;text-align:left;vertical-align:top}th{background:var(--md-fill-strong);font-weight:600}td{background:var(--md-fill)}:is(th,td) :not(pre)>code{background:transparent}hr{border:0;border-top:1px solid var(--md-rule-strong);margin-block:10px}img{max-width:100%;height:auto;border-radius:4px}</style>
+</head><body>
+<h1>ScriptGuard</h1>
+<p><strong>An offline agent that checks a patient's discharge summary against their discharge prescription and flags every mismatch for a pharmacist before the patient goes home.</strong></p>
+<p>Runs entirely on one Dell GB10: NemoClaw sets up the stack, OpenShell sandboxes it, OpenClaw runs the agent, Nemotron does the reading.</p>
+<hr>
+<h2>1. Pitch</h2>
+<h3>30-second version</h3>
+<blockquote>
+<p>When a patient leaves hospital, two documents go out: a discharge summary describing the treatment plan, and a prescription telling the pharmacy what to dispense. They're supposed to say the same thing. Often they're written by different people: a senior doctor writes the summary, a junior doctor writes the prescription at the end of a long shift. Things get lost in that handoff: a dose changes, a drug disappears, a specific brand becomes a generic. ScriptGuard reads both documents the moment they're filed, matches every medicine line by line, and puts every mismatch in front of a pharmacist, ranked by severity. It runs on one local machine, so no patient data ever leaves the hospital.</p>
+</blockquote>
+<h3>The story to tell on stage</h3>
+<p>Mary, 74, is being discharged after a hip operation.</p>
+<ul>
+<li><strong>Dr. Rao (senior)</strong> writes the discharge summary: continue metformin 500 mg twice daily, continue sertraline 50 mg once daily, start Dolo 650 three times daily for pain.</li>
+<li><strong>Dr. Lee (junior)</strong>, finishing a 12-hour shift with six other discharges, writes the prescription: metformin 1000 mg twice daily, paracetamol 650 mg three times daily. Sertraline doesn't make it onto the prescription at all.</li>
+</ul>
+<p>Nobody notices. Mary would go home on double her diabetes dose, without her antidepressant, and with a generic substituted for the brand her doctor chose.</p>
+<p>ScriptGuard catches all three within seconds of the files being saved. The pharmacist sees two high-severity flags and one low-severity &quot;confirm brand&quot; flag, calls Dr. Lee, and fixes the prescription before Mary leaves.</p>
+<h3>Why every mismatch is flagged, even brand vs generic</h3>
+<p>Doctors sometimes choose a specific brand on purpose and don't write down why. Real reasons:</p>
+<ul>
+<li><strong>Inactive ingredients differ between brands.</strong> Fillers, dyes, lactose, or gluten vary by manufacturer. A patient sensitive to one may need a specific brand.</li>
+<li><strong>Some drugs are risky to switch between manufacturers.</strong> For narrow-margin drugs such as levothyroxine (thyroid), tacrolimus (transplant), and some epilepsy medicines, small differences between versions can matter, so doctors may insist on one brand.</li>
+<li><strong>&quot;Dispense as written.&quot;</strong> Doctors can mark a prescription as no-substitution without giving a reason. Busy doctors rarely explain.</li>
+</ul>
+<p>So ScriptGuard never silently treats two names as equivalent. It flags the difference and grades it: a brand vs generic difference with the same ingredient and dose is low severity (&quot;confirm brand intent&quot;); anything else is high.</p>
+<h3>Why local and offline</h3>
+<ul>
+<li>Patient documents never leave the building. No cloud contract or data-sharing negotiation needed.</li>
+<li>Works when the hospital network or internet is down.</li>
+<li>Predictable one-time hardware cost instead of per-document cloud fees.</li>
+<li>OpenShell's sandbox policy enforces it: the agent has no internet and can only touch one folder. That's provable, not just promised.</li>
+</ul>
+<h3>What NOT to say on stage</h3>
+<ul>
+<li><strong>Don't say &quot;Dolo is avoided because of a paracetamol allergy.&quot;</strong> Dolo 650 <em>is</em> paracetamol. Its only active ingredient is paracetamol. Use the real reasons above.</li>
+<li><strong>Don't say ScriptGuard &quot;blocks orders.&quot;</strong> It flags them for a pharmacist. The human decides.</li>
+<li><strong>Don't say &quot;CLEAN&quot; means safe.</strong> Say &quot;no mismatches found between the two documents.&quot;</li>
+<li><strong>Don't present the broad research numbers as your exact problem.</strong> Studies showing about half of patients have medication discrepancies after discharge cover all kinds of discrepancies. Summary-vs-prescription mismatches are one slice. Say &quot;one important slice of a big problem,&quot; or quote a study specifically on summary-vs-prescription discrepancies if you find one.</li>
+</ul>
+<h3>Likely judge questions</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Why not just a Python script?</td>
+<td>The documents are free text, abbreviations, brand names, sometimes messy scans. Nemotron reads them; Python does the strict comparison; the agent decides what to do when reading fails (retry, wait for the missing file, escalate) and explains each flag.</td>
+</tr>
+<tr>
+<td>What if the AI misreads a dose?</td>
+<td>Every extracted value must be found inside the exact line it came from. If not, the agent retries once, then sends the case to human review. The AI never gets to &quot;make up&quot; a value.</td>
+</tr>
+<tr>
+<td>Won't pharmacists get too many alerts?</td>
+<td>Flags are graded. Brand-only differences are low severity and grouped separately. High severity is reserved for different drugs, doses, frequencies, or missing drugs.</td>
+</tr>
+<tr>
+<td>Why not use Epic's built-in tools?</td>
+<td>Our target hospitals are small, often not on Epic, and many of their documents arrive as PDFs and scans.</td>
+</tr>
+<tr>
+<td>What's next?</td>
+<td>Add the patient's home medication list as a third input, to catch drugs paused in hospital and never restarted. Then nursing-home intake. Then EHR integration via FHIR.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>2. The idea in detail</h2>
+<h3>Scope</h3>
+<p>ScriptGuard checks <strong>consistency between two documents written by the same discharging team</strong>:</p>
+<ol>
+<li>Discharge summary (the plan)</li>
+<li>Discharge prescription (what will be dispensed)</li>
+</ol>
+<p>They must agree exactly. Any difference is flagged.</p>
+<p><strong>In scope:</strong> dose, frequency, route, drug name (including brand vs generic), drugs present in one document only, drugs marked &quot;stop&quot; in the summary but still on the prescription.</p>
+<p><strong>Out of scope (roadmap):</strong> comparing against the home medication list, drug-drug interactions, kidney-based dosing, allergy checks.</p>
+<h3>Who uses it</h3>
+<ul>
+<li><strong>Pharmacist:</strong> opens a dashboard of discharges, sees flags ranked by severity, resolves each one.</li>
+<li><strong>Discharging doctor:</strong> gets called or messaged when a high flag needs correction.</li>
+<li><strong>Hospital:</strong> fewer errors leaving the building, fewer return visits.</li>
+</ul>
+<hr>
+<h2>3. Analysis</h2>
+<h3>Where it fits</h3>
+<ul>
+<li><strong>Small and mid-sized community hospitals</strong> (roughly 25–200 beds) with few pharmacists who can't manually recheck every discharge.</li>
+<li><strong>Hospitals where summary and prescription are produced separately</strong>, by different people or in different systems. That's where handoff errors live.</li>
+<li><strong>Hospitals receiving or producing documents as PDFs and scans,</strong> where a language model is genuinely needed to read them.</li>
+<li><strong>Settings with strict data rules</strong> that prefer nothing leaves the building.</li>
+</ul>
+<h3>Where it doesn't fit</h3>
+<ul>
+<li><strong>Large hospitals on fully integrated EHRs</strong> (e.g., Epic), where the prescription is generated directly from the same order list as the summary. Mismatches are rarer there, and built-in tools already exist.</li>
+<li><strong>Hospitals with no IT staff</strong> to keep a local machine running and updated.</li>
+<li><strong>Anyone expecting it to replace a pharmacist.</strong> It reduces their workload; it doesn't make decisions.</li>
+</ul>
+<h3>What exists in the market</h3>
+<ul>
+<li><strong>EHR-native medication reconciliation</strong> (Epic, Oracle Health, MEDITECH): built in, but only for hospitals on those systems, and focused on structured data.</li>
+<li><strong>Medication history services</strong> (DrFirst MedHx, Surescripts): pull pharmacy fill history, mainly for the admission side.</li>
+<li><strong>Shared-record platforms</strong> (e.g., XchangePoint): share medication histories across facilities; depend on everyone joining the network.</li>
+<li><strong>AI discharge tools</strong> (e.g., MayaMD's MayaRED): patient-facing discharge plans and education, not pharmacist-facing document checking.</li>
+<li><strong>Custom AI builds</strong> by consultancies: cloud-based reconciliation agents built to order.</li>
+</ul>
+<p><strong>ScriptGuard's angle:</strong> a pharmacist-facing, fully local, document-level consistency checker that works on messy text without EHR integration.</p>
+<h3>Risks and how we handle them</h3>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Model misreads a value</td>
+<td>Line-level grounding; retry once; then human review</td>
+</tr>
+<tr>
+<td>Model attaches a dose to the wrong drug</td>
+<td>All values must come from the same line (span), not just appear somewhere</td>
+</tr>
+<tr>
+<td>Alert fatigue</td>
+<td>Severity grading; brand-only differences grouped as low</td>
+</tr>
+<tr>
+<td>False comfort from &quot;no flags&quot;</td>
+<td>Wording: &quot;no mismatches found in N items checked,&quot; never &quot;safe&quot;</td>
+</tr>
+<tr>
+<td>Brand names not in our lookup</td>
+<td>Unknown name → treated as a different drug → high flag. Fails safe</td>
+</tr>
+<tr>
+<td>Stack is alpha software</td>
+<td>Pin versions; have a fallback trigger and a recorded demo video</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>4. Technical workflow</h2>
+<pre><code> Discharge files saved             OpenShell sandbox (no internet, one folder)
+ ─────────────────────            ───────────────────────────────────────────
+ inbox/case_017/                   OpenClaw agent (ScriptGuard skill)
+   summary.txt        ──────────►   1. Detect complete pair
+   prescription.txt                 2. Extract both docs  ──► Nemotron (local,
+                                    3. Ground every value      via OpenShell
+                                       └─ fail? retry once     gateway)
+                                       └─ fail again? REVIEW
+                                    4. Normalize (names, frequencies)
+                                    5. Compare + grade severity
+                                    6. Explain each flag in plain English
+                                    7. Write outbox/case_017.json
+                                                │
+                                                ▼
+                                      Pharmacist dashboard
+                                   (reads outbox/, side-by-side view)
+</code></pre>
+<p>Responsibilities, matching your architecture diagram:</p>
+<ul>
+<li><strong>NemoClaw (setup layer):</strong> installs and launches the OpenShell sandbox, applies the policy, installs OpenClaw, and wires inference to the local Nemotron model. Not part of the runtime loop.</li>
+<li><strong>OpenShell (sandbox):</strong> enforces no internet, filesystem access limited to the ScriptGuard folder, and routes model calls through its gateway.</li>
+<li><strong>OpenClaw (agent):</strong> runs the loop, calls tools, makes decisions (retry, wait, escalate), writes results.</li>
+<li><strong>Nemotron (LLM):</strong> extraction from free text, and plain-English explanations of each flag.</li>
+<li><strong>Python tools (deterministic):</strong> grounding, normalization, comparison, severity. The model never decides whether two values match.</li>
+</ul>
+<h3>Where the agent makes real decisions</h3>
+<p>These are what make it an agent rather than a script. Show at least two in the demo.</p>
+<ol>
+<li><strong>Pair incomplete:</strong> summary arrived but prescription hasn't. Agent waits and rechecks instead of failing.</li>
+<li><strong>Grounding failed:</strong> agent re-runs extraction with the grounding error fed back (&quot;dose '500' not found in line 3&quot;), once. Then escalates.</li>
+<li><strong>Explaining flags:</strong> agent writes a one-sentence explanation per flag for the pharmacist.</li>
+<li><strong>Escalation:</strong> unreadable document → marks case REVIEW with a reason instead of guessing.</li>
+</ol>
+<hr>
+<h2>5. Tech stack</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Choice</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hardware</td>
+<td>Dell Pro Max GB10</td>
+<td>Everything runs here, offline</td>
+</tr>
+<tr>
+<td>Setup / lifecycle</td>
+<td>NemoClaw</td>
+<td>Onboards sandbox, policy, agent, inference profile</td>
+</tr>
+<tr>
+<td>Sandbox</td>
+<td>OpenShell</td>
+<td>Policy: no egress except inference gateway; one folder</td>
+</tr>
+<tr>
+<td>Agent runtime</td>
+<td>OpenClaw</td>
+<td>ScriptGuard skill + tool calls</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td>Nemotron (local)</td>
+<td>Use whichever Nemotron model you pre-downloaded and served locally. Smaller = faster demo; temperature 0</td>
+</tr>
+<tr>
+<td>Deterministic tools</td>
+<td>Python 3 (stdlib only)</td>
+<td><code>extract.py</code>, <code>ground.py</code>, <code>normalize.py</code>, <code>compare.py</code></td>
+</tr>
+<tr>
+<td>Data</td>
+<td>Plain JSON files</td>
+<td>No database needed</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>Single HTML page or small Flask app</td>
+<td>Reads <code>outbox/*.json</code>, polls every 2 s</td>
+</tr>
+</tbody>
+</table>
+<p>Don't add anything else in 4 hours.</p>
+<hr>
+<h2>6. Data contracts</h2>
+<h3>Folder layout</h3>
+<pre><code>scriptguard/
+  inbox/case_017/summary.txt
+  inbox/case_017/prescription.txt
+  outbox/case_017.json
+  tools/extract.py  ground.py  normalize.py  compare.py  run_case.py
+  data/brands.json  data/frequencies.json
+  dashboard/
+</code></pre>
+<h3>Extraction output (per document)</h3>
+<pre><code class="language-json">{
+  &#34;doc&#34;: &#34;summary&#34;,
+  &#34;meds&#34;: [
+    {
+      &#34;line&#34;: 3,
+      &#34;span&#34;: &#34;Continue metformin 500 mg BID&#34;,
+      &#34;name_raw&#34;: &#34;metformin&#34;,
+      &#34;dose_raw&#34;: &#34;500&#34;,
+      &#34;unit_raw&#34;: &#34;mg&#34;,
+      &#34;freq_raw&#34;: &#34;BID&#34;,
+      &#34;route_raw&#34;: null,
+      &#34;status&#34;: &#34;continue&#34;
+    }
+  ]
+}
+</code></pre>
+<p><code>status</code> is one of <code>continue</code>, <code>start</code>, <code>stop</code>, <code>change</code>. Raw fields are copied exactly as written. Normalization happens later, in Python.</p>
+<h3>Result (<code>outbox/case_017.json</code>)</h3>
+<pre><code class="language-json">{
+  &#34;case&#34;: &#34;case_017&#34;,
+  &#34;status&#34;: &#34;FLAGGED&#34;,
+  &#34;checked&#34;: 3,
+  &#34;flags&#34;: [
+    {&#34;severity&#34;: &#34;HIGH&#34;, &#34;drug&#34;: &#34;metformin&#34;, &#34;type&#34;: &#34;dose_mismatch&#34;,
+     &#34;summary&#34;: &#34;metformin 500 mg BID (line 1)&#34;,
+     &#34;prescription&#34;: &#34;Metformin 1000 mg BID (line 1)&#34;,
+     &#34;explanation&#34;: &#34;The prescription doubles the dose stated in the summary.&#34;}
+  ]
+}
+</code></pre>
+<p><code>status</code> is <code>NO_MISMATCHES</code>, <code>FLAGGED</code>, or <code>REVIEW</code> (couldn't read reliably).</p>
+<hr>
+<h2>7. Core logic</h2>
+<h3>Extraction prompt (Nemotron, temperature 0)</h3>
+<pre><code>You extract medications from a clinical document.
+Return ONLY JSON matching this schema, no other text: {schema}
+Rules:
+- One entry per medication line.
+- &#34;line&#34; is the 1-based line number in the document.
+- &#34;span&#34; is copied character-for-character from that line.
+- name_raw, dose_raw, unit_raw, freq_raw must be copied exactly as written
+  inside the span. Do NOT expand abbreviations or convert brand names.
+- If a field is not present, use null.
+Document (numbered lines):
+{numbered_text}
+</code></pre>
+<h3>Grounding</h3>
+<pre><code class="language-python">def ground(med, lines):
+    line = lines[med[&#34;line&#34;] - 1].lower()
+    span = med[&#34;span&#34;].lower()
+    if span not in line:
+        return f&#34;span not found on line {med[&#39;line&#39;]}&#34;
+    for f in (&#34;name_raw&#34;, &#34;dose_raw&#34;, &#34;unit_raw&#34;, &#34;freq_raw&#34;, &#34;route_raw&#34;):
+        v = med.get(f)
+        if v and v.lower() not in span:
+            return f&#34;{f} &#39;{v}&#39; not inside its span&#34;
+    return None  # grounded
+</code></pre>
+<h3>Normalization</h3>
+<pre><code class="language-python">BRANDS = {&#34;dolo 650&#34;: (&#34;paracetamol&#34;, &#34;650&#34;), &#34;dolo&#34;: (&#34;paracetamol&#34;, None),
+          &#34;crocin&#34;: (&#34;paracetamol&#34;, None), &#34;calpol&#34;: (&#34;paracetamol&#34;, None),
+          &#34;tylenol&#34;: (&#34;paracetamol&#34;, None), &#34;acetaminophen&#34;: (&#34;paracetamol&#34;, None),
+          &#34;glycomet&#34;: (&#34;metformin&#34;, None), &#34;lasix&#34;: (&#34;furosemide&#34;, None),
+          &#34;eltroxin&#34;: (&#34;levothyroxine&#34;, None), &#34;thyronorm&#34;: (&#34;levothyroxine&#34;, None)}
+FREQ = {&#34;od&#34;: 1, &#34;qd&#34;: 1, &#34;once daily&#34;: 1, &#34;bd&#34;: 2, &#34;bid&#34;: 2, &#34;twice daily&#34;: 2,
+        &#34;tds&#34;: 3, &#34;tid&#34;: 3, &#34;three times daily&#34;: 3, &#34;qid&#34;: 4, &#34;prn&#34;: &#34;prn&#34;, &#34;hs&#34;: &#34;night&#34;}
+
+def normalize(med):
+    name = med[&#34;name_raw&#34;].lower().strip()
+    ingredient, implied_dose = BRANDS.get(name, (name, None))
+    dose = med[&#34;dose_raw&#34;] or implied_dose
+    return {&#34;name&#34;: name, &#34;ingredient&#34;: ingredient,
+            &#34;is_brand&#34;: name in BRANDS and name != ingredient,
+            &#34;dose&#34;: dose, &#34;unit&#34;: (med[&#34;unit_raw&#34;] or &#34;mg&#34;).lower(),
+            &#34;freq&#34;: FREQ.get((med[&#34;freq_raw&#34;] or &#34;&#34;).lower(), med[&#34;freq_raw&#34;]),
+            &#34;status&#34;: med[&#34;status&#34;]}
+</code></pre>
+<h3>Comparison and severity</h3>
+<pre><code class="language-python">def compare(summary, rx):
+    flags = []
+    s_active = {m[&#34;ingredient&#34;]: m for m in summary if m[&#34;status&#34;] != &#34;stop&#34;}
+    s_stopped = {m[&#34;ingredient&#34;] for m in summary if m[&#34;status&#34;] == &#34;stop&#34;}
+    r = {m[&#34;ingredient&#34;]: m for m in rx}
+    for ing, s in s_active.items():
+        p = r.get(ing)
+        if not p:
+            flags.append((&#34;HIGH&#34;, ing, &#34;missing_from_prescription&#34;)); continue
+        if (s[&#34;dose&#34;], s[&#34;unit&#34;]) != (p[&#34;dose&#34;], p[&#34;unit&#34;]):
+            flags.append((&#34;HIGH&#34;, ing, &#34;dose_mismatch&#34;))
+        if s[&#34;freq&#34;] != p[&#34;freq&#34;]:
+            flags.append((&#34;HIGH&#34;, ing, &#34;frequency_mismatch&#34;))
+        if s[&#34;name&#34;] != p[&#34;name&#34;]:
+            flags.append((&#34;LOW&#34;, ing, &#34;name_differs_confirm_brand_intent&#34;))
+    for ing in r:
+        if ing in s_stopped:
+            flags.append((&#34;HIGH&#34;, ing, &#34;stopped_in_summary_but_prescribed&#34;))
+        elif ing not in s_active:
+            flags.append((&#34;HIGH&#34;, ing, &#34;not_in_summary&#34;))
+    return flags
+</code></pre>
+<p>An unknown brand name maps to itself, so it never matches anything and gets a HIGH flag. That's the safe direction.</p>
+<hr>
+<h2>8. Demo cases</h2>
+<p>Write these as text files before you start building. They are your tests.</p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>What's in it</th>
+<th>Expected result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mary (hero case)</strong></td>
+<td>Summary: metformin 500 BID, sertraline 50 OD, Dolo 650 TDS. Rx: metformin 1000 BID, paracetamol 650 TDS</td>
+<td>HIGH dose mismatch (metformin), HIGH missing (sertraline), LOW brand (Dolo vs paracetamol)</td>
+</tr>
+<tr>
+<td><strong>Clean</strong></td>
+<td>Both documents identical</td>
+<td>NO_MISMATCHES</td>
+</tr>
+<tr>
+<td><strong>Stopped but prescribed</strong></td>
+<td>Summary: &quot;stop amlodipine&quot;. Rx includes amlodipine 5 mg OD</td>
+<td>HIGH stopped_in_summary_but_prescribed</td>
+</tr>
+<tr>
+<td><strong>Brand-critical</strong></td>
+<td>Summary: Eltroxin 50 mcg OD. Rx: levothyroxine 50 mcg OD</td>
+<td>LOW brand flag, explanation mentions brand switching for thyroid medicine</td>
+</tr>
+<tr>
+<td><strong>Messy / unreadable</strong></td>
+<td>Summary missing a dose, garbled line</td>
+<td>Agent retries, then REVIEW with reason</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>9. Four-hour build plan</h2>
+<p>Assumes 3 people: <strong>A</strong> (stack + agent), <strong>B</strong> (Python logic), <strong>C</strong> (dashboard + pitch). Adjust if your team is different.</p>
+<h3>Hour 0:00–0:30 — Stack check (everyone, A leads)</h3>
+<ul>
+<li><input disabled="" type="checkbox"> NemoClaw sandbox launches; OpenClaw agent responds to a test message.</li>
+<li><input disabled="" type="checkbox"> Nemotron answers through the OpenShell gateway from inside the sandbox. Note the endpoint URL and model name.</li>
+<li><input disabled="" type="checkbox"> Sandbox policy allows read/write to the <code>scriptguard/</code> folder only. Confirm the agent can list <code>inbox/</code>.</li>
+<li><input disabled="" type="checkbox"> Decide how files move between host and sandbox: shared folder, the CLI's file upload/download, or run the dashboard inside the sandbox with a forwarded port. Pick whichever works first.</li>
+<li><input disabled="" type="checkbox"> C writes all five demo cases into <code>inbox/</code>.</li>
+</ul>
+<p><strong>Checkpoint:</strong> if Nemotron can't be reached from the sandbox by 0:30, everyone helps A until it works. Nothing else matters without it.</p>
+<h3>Hour 0:30–1:45 — Build in parallel</h3>
+<ul>
+<li><strong>A:</strong> <code>extract.py</code>: numbered lines in, JSON out, using the prompt above. Parse failures retry once. Test on the Mary summary.</li>
+<li><strong>B:</strong> <code>ground.py</code>, <code>normalize.py</code>, <code>compare.py</code>, <code>run_case.py</code> (chains them, writes <code>outbox/</code>). Test with hand-written extraction JSON so you don't depend on A.</li>
+<li><strong>C:</strong> dashboard. List of cases with status badges; click a case to see summary and prescription side by side with flagged lines highlighted and the explanation. Hardcode a sample result file to build against.</li>
+</ul>
+<p><strong>Checkpoint at 1:45:</strong> <code>run_case.py case_mary</code> produces the expected three flags end-to-end.</p>
+<h3>Hour 1:45–2:45 — Make it an agent</h3>
+<ul>
+<li><strong>A + B:</strong> OpenClaw ScriptGuard skill. Instructions to the agent:
+<ol>
+<li>Check <code>inbox/</code> for case folders with both files. If only one, note it and check again later.</li>
+<li>Run extraction; run grounding.</li>
+<li>If grounding fails, re-run extraction with the error message included; if it fails twice, write REVIEW with the reason.</li>
+<li>Run compare; for each flag, write a one-sentence explanation.</li>
+<li>Write the result to <code>outbox/</code> and move the case to <code>inbox/done/</code>.</li>
+</ol>
+</li>
+<li><strong>Trigger:</strong> use OpenClaw's scheduled/heartbeat check if it works in your version. Fallback: a host-side loop that messages the agent &quot;process inbox&quot; every 10 s. Fallback 2: trigger by message during the demo and say &quot;in production this runs on a schedule.&quot;</li>
+<li><strong>C:</strong> connect dashboard to real <code>outbox/</code> files.</li>
+</ul>
+<p><strong>Checkpoint at 2:45:</strong> drop the Mary folder into <code>inbox/</code>, dashboard shows flags without anyone touching anything.</p>
+<h3>Hour 2:45–3:30 — Harden and test</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Run all five demo cases. Fix wrong results.</li>
+<li><input disabled="" type="checkbox"> Time the Mary case end-to-end. If it's slow, cut the explanation step to one call per case, not per flag.</li>
+<li><input disabled="" type="checkbox"> Show the sandbox policy in action: have the agent try to reach the internet and show it being blocked. Judges like this.</li>
+<li><input disabled="" type="checkbox"> Record a backup video of the full demo.</li>
+</ul>
+<h3>Hour 3:30–4:00 — Pitch</h3>
+<ul>
+<li><input disabled="" type="checkbox"> C finalizes slides: problem, Mary story, live demo, why every mismatch is flagged, why local, roadmap.</li>
+<li><input disabled="" type="checkbox"> Rehearse once with the judge questions from section 1.</li>
+<li><input disabled="" type="checkbox"> Freeze code. No changes after 3:45.</li>
+</ul>
+<h3>If you're running behind, cut in this order</h3>
+<ol>
+<li>The brand-critical and stopped-but-prescribed demo cases (keep Mary, clean, messy).</li>
+<li>Per-flag explanations (show the raw flag type instead).</li>
+<li>Automatic trigger (trigger by message).</li>
+</ol>
+<p><strong>Never cut:</strong> grounding, severity grading, the Mary case, the sandbox-blocks-internet moment.</p>
+<hr>
+<h2>10. Definition of done</h2>
+<ul>
+<li>Drop Mary's two files into the folder → dashboard shows two HIGH and one LOW flag with explanations, no manual steps.</li>
+<li>Clean case shows &quot;No mismatches found in N items.&quot;</li>
+<li>Messy case shows REVIEW with a reason, after a visible retry.</li>
+<li>Everything runs with the network cable unplugged.</li>
+</ul>
+
+</body></html>
